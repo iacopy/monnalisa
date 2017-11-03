@@ -12,13 +12,18 @@ def generate(bases, length):
     return ''.join([choice(bases) for _ in range(length)])
 
 
-def rand_positions(length, mutation_rate):
+def rand_positions(int length, double mutation_rate):
     """
     Extract a random number of random positions within `length`, given
     a per-basis `mutation_rate`.
     """
-    return [i for i in range(length) if rand() <= mutation_rate]
-
+    cdef int i
+    ret = []
+    #return [i for i in range(length) if rand() <= mutation_rate]
+    for i in range(length):
+        if rand() <= mutation_rate:
+            ret.append(i)
+    return ret
 
 def flip_mutate(positions, genome):
     """
@@ -68,10 +73,12 @@ class CharEncoder:
 
     def decode(self, chrom_01):
         ret = []
-        n_bit = self.n_bit
-        for i in range(0, len(chrom_01), n_bit):
+        cdef int i, dec
+        char_pool = self.char_pool
+        cdef int n_bit = self.n_bit
+        cdef int len_chrom = len(chrom_01)
+        for i in range(0, len_chrom, n_bit):
             tuplet = chrom_01[i: i + n_bit]
             dec = int(tuplet, 2)
-            char = self.char_pool[dec]
-            ret.append(char)
+            ret.append(char_pool[dec])
         return ''.join(ret)
