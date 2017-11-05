@@ -7,17 +7,12 @@ def generate(bases, length):
     return ''.join([choice(bases) for _ in range(length)])
 
 
-def rand_positions(int length, double mutation_rate):
+def rand_positions(length, mutation_rate):
     """
     Extract a random number of random positions within `length`, given
     a per-basis `mutation_rate`.
     """
-    cdef int i
-    ret = []
-    for i in range(length):
-        if rand() <= mutation_rate:
-            ret.append(i)
-    return ret
+    return [i for i in range(length) if rand() <= mutation_rate]
 
 
 def flip_mutate(positions, genome):

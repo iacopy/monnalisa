@@ -3,6 +3,9 @@ from math import log
 from PIL import Image
 from PIL import ImageDraw
 from random import choice
+import numpy as np
+import os
+
 
 BASES = '01'
 
@@ -25,10 +28,10 @@ class TrianglesEncoder:
         self.w_bit = w_bit
         self.h_bit = h_bit
         self.color_bit = color_bit
-        self.genome_length = n_triangles * ((w_bit + h_bit) * 3 +  color_bit)
+        self.genome_size = n_triangles * ((w_bit + h_bit) * 3 + color_bit)
 
     def generate(self):
-        return ''.join([choice(BASES) for _ in range(self.genome_length)])
+        return ''.join([choice(BASES) for _ in range(self.genome_size)])
 
     def decode(self, dna):
         """
@@ -51,16 +54,45 @@ class TrianglesEncoder:
                 # print('\t\tx_tuplet =', x_tuplet)
                 # print('\t\ty_tuplet =', y_tuplet)
                 # print('\t\ttriangle_points =', triangle_points)
+
             color_tuplet = dna[i: i + color_bit]
             color = int(color_tuplet, 2)
+            i += color_bit
             ret.append((tuple(triangle_points), color))
         return ret
 
 
-def draw_triangles(im, triangles, save=False):
+def draw_triangles(image_size, triangles, background_color=255, save=False):
+    """Create an image and draw triangles on it.
+    """
+    im = Image.new('L', image_size, color=background_color)
     drawer = ImageDraw.Draw(im)
     for points, color in triangles:
         drawer.polygon(points, outline=color)
+    return im
+
+
+class ImageEvaluator:
+    def __init__(self, target_image):
+        im = Image.open(target_image).convert('L')
+        dirpath, filename = os.path.split(target_image)
+        name, ext = os.path.splitext(filename)
+        self.target_dst_dir = os.path.join(dirpath, name)
+        try:
+            os.makedirs(self.target_dst_dir)
+        except FileExistsError:
+            print('Directory already exists:', self.target_dst_dir)
+        im.save(os.path.join(self.target_dst_dir, name + '_L' + ext))
+        self.target_size = im.size
+        self.target_data = np.array(im.getdata()) / 255
+        self.n_data = len(self.target_data)
+
+    def evaluate(self, image):
+        """Mean Squared Error
+        """
+        return (
+            ((self.target_data - np.array(image.getdata()) / 255) ** 2) / self.n_data
+        ).sum()
 
 
 def demo():
