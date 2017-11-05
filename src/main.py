@@ -1,9 +1,9 @@
 from __future__ import division
 from chars import CharEncoder
 from chars import evaluator
-from chars import flip_mutate
-from chars import generate
-from chars import rand_positions
+from cgenome import flip_mutate
+from cgenome import generate
+from cgenome import rand_positions
 from chars import __file__ as chars__file__
 from functools import partial
 from random import seed
