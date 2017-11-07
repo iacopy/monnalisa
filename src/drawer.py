@@ -170,8 +170,7 @@ class ImageEvaluator:
         """Mean Squared Error
         """
         self.candidate_arr[:] = image.getdata()
-        assert self.candidate_arr.shape == self.target_arr.shape
-        return (self.target_arr - self.candidate_arr).sum()
+        return ((self.target_arr - self.candidate_arr) ** 2).sum()
 
 
 def demo():
