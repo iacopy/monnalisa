@@ -1,4 +1,5 @@
 from __future__ import division
+from collections import Counter
 from drawer import PolygonsEncoder
 from drawer import ImageEvaluator
 from drawer import draw_polygons
@@ -24,7 +25,7 @@ def main(target, n_polygons, image_mode='RGB'):
     min_save_dt = 0.5
     print('drawing {} with {} polygons'.format(target, n_polygons))
 
-    def save_image(image):
+    def save_progress():
         print('Save image...',)
         dst = os.path.join(
             evaluator.target_dst_dir,
@@ -32,8 +33,20 @@ def main(target, n_polygons, image_mode='RGB'):
                 name=os.path.basename(target), i=iteration, t=n_polygons, mse=father_evaluation
             )
         )
-        image.save(dst)
-        print('saved', dst)
+        best_image.save(dst)
+        stats_filepath = os.path.join(evaluator.target_dst_dir, 'p{}.txt'.format(n_polygons))
+        with open(stats_filepath, 'a') as fp:
+            fp.write('{it}; {ev}; {delta}; {fails}\n'.format(
+                it=iteration, ev=round(father_evaluation, 4), delta=delta_evaluation, fails=failed_iterations
+                )
+            )
+        mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
+        with open(mutations_dst, 'w') as fp:
+            fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
+            fp.write('Mutated positions: {}\n\n'.format(len(good_mutations)))
+            for position, hits in sorted(good_mutations.items()):
+                fp.write('{:<5}: {}\n'.format(position, hits * '='))
+        print('saved {} and {}'.format(dst, stats_filepath))
 
     print('target: {}'.format(repr(target)))
     print('n_polygons: {}'.format(n_polygons))
@@ -53,6 +66,8 @@ def main(target, n_polygons, image_mode='RGB'):
     best_image = father_phenotype
 
     iteration = 0
+    failed_iterations = 0
+    good_mutations = Counter()
     t0 = time.time()
     last_saved = t0
     while father_evaluation:
@@ -67,23 +82,27 @@ def main(target, n_polygons, image_mode='RGB'):
             background_color=child_im_recipe['background'], image_mode=image_mode)
         child_evaluation = evaluator.evaluate(child_phenotype)
         if child_evaluation < father_evaluation:
-            print('success at {:,}'.format(iteration))
-            print(child, child_phenotype, round(child_evaluation, 4))
+            good_mutations.update(mut_positions)
+            delta_evaluation = father_evaluation - child_evaluation
             best_image = child_phenotype
             father_evaluation = child_evaluation
             father = child
 
             tt = time.time()
             speed = '{:.3f} it/s'.format(iteration / (tt - t0))
-            print(speed)
+            print('success at {:,}: {:.4f} - {}'.format(iteration, child_evaluation, speed))
             dt = tt - last_saved
             if dt > min_save_dt:
-                save_image(best_image)
+
+                save_progress()
+
                 last_saved = time.time()
                 if dt < MIN_SAVE_DT:
                     min_save_dt = min_save_dt * 2
                 else:
                     min_save_dt = min_save_dt / 2
+        else:
+            failed_iterations += 1
 
     et = time.time() - t0
     speed = '{:.3f} it/s'.format(iteration / et)
