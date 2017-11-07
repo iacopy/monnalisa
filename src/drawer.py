@@ -161,15 +161,17 @@ class ImageEvaluator:
         im.save(os.path.join(self.target_dst_dir, name + '_' + mode + ext))
         self.target_image = im
         self.target_size = im.size
-        self.target_data = np.array(im.getdata()) / 255
-        self.n_data = len(self.target_data)
+        self.target_arr = np.asarray(im.getdata())
+        self.n_data = len(self.target_arr)
+        # Create here, one time, the numpy array, whose the creation is the bottleneck
+        self.candidate_arr = np.zeros(self.target_arr.shape, np.uint8)
 
     def evaluate(self, image):
         """Mean Squared Error
         """
-        return (
-            ((self.target_data - np.array(image.getdata()) / 255) ** 2) / self.n_data
-        ).sum()
+        self.candidate_arr[:] = image.getdata()
+        assert self.candidate_arr.shape == self.target_arr.shape
+        return (self.target_arr - self.candidate_arr).sum()
 
 
 def demo():
