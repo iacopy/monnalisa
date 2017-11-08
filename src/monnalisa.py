@@ -43,14 +43,20 @@ def main(target, n_polygons, image_mode='RGB'):
         mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
         with open(mutations_dst, 'w') as fp:
             fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
-            fp.write('Mutated positions: {}\n\n'.format(len(good_mutations)))
-            for position, hits in sorted(good_mutations.items()):
-                fp.write('{:<5}: {}\n'.format(position, hits * '='))
+            fp.write('Positive mutations: {}\n\n'.format(len(good_mutations)))
+            for position in range(polygons_encoder.genome_size):
+                fp.write('{:<5}: {}\n'.format(position, good_mutations.get(position, 0) * '='))
         print('saved {} and {}'.format(dst, stats_filepath))
+
+        print('Bad mutation overhead: {:.4f} s'.format(t_sk_tot))
+        t_ev_mean = t_ev_tot / n_evaluations
+        t_ev_avoided = t_ev_mean * n_skipped_evaluations
+        print('{} skipped evaluation {:.4f} s'.format(n_skipped_evaluations, t_ev_avoided))
+        print('Time saved           : {:.2f} m'.format((t_ev_avoided - t_sk_tot) / 60))
 
     print('target: {}'.format(repr(target)))
     print('n_polygons: {}'.format(n_polygons))
-    n_total_sides = n_polygons * 3
+    n_total_sides = n_polygons * max_sides
     print('n_total_sides: {}'.format(n_total_sides))
 
     evaluator = ImageEvaluator(target)
@@ -66,8 +72,11 @@ def main(target, n_polygons, image_mode='RGB'):
     best_image = father_phenotype
 
     iteration = 0
+    n_evaluations = n_skipped_evaluations = 0
+    t_sk_tot = t_ev_tot = 0
     failed_iterations = 0
     good_mutations = Counter()
+    bad_mutations = set()
     t0 = time.time()
     last_saved = t0
     while father_evaluation:
@@ -75,13 +84,30 @@ def main(target, n_polygons, image_mode='RGB'):
         if iteration == STOP:
             break
 
-        mut_positions = rand_positions(genome_size, 1.0 / genome_size)
+        # frozenset is to cache bad mutations
+        mut_positions = frozenset(rand_positions(genome_size, 1.0 / genome_size))
+
+        # Check bad mutations
+        t_sk_ev_0 = time.time()
+        if len(mut_positions) < 3:
+            if mut_positions in bad_mutations:
+                n_skipped_evaluations += 1
+                t_sk_tot += time.time() - t_sk_ev_0
+                continue
+            t_sk_tot += time.time() - t_sk_ev_0
+
+        # Evaluation (mutation, phenotype and evaluation)
+        t_ev_0 = time.time()
         child = flip_mutate(mut_positions, father)
         child_im_recipe = polygons_encoder.decode(child)
         child_phenotype = draw_polygons(image_size, child_im_recipe['polygons'],
             background_color=child_im_recipe['background'], image_mode=image_mode)
         child_evaluation = evaluator.evaluate(child_phenotype)
+        n_evaluations += 1
+        t_ev_tot += time.time() - t_ev_0
+
         if child_evaluation < father_evaluation:
+            bad_mutations = set()
             good_mutations.update(mut_positions)
             delta_evaluation = father_evaluation - child_evaluation
             best_image = child_phenotype
@@ -103,6 +129,8 @@ def main(target, n_polygons, image_mode='RGB'):
                     min_save_dt = min_save_dt / 2
         else:
             failed_iterations += 1
+            if len(mut_positions) < 3:
+                bad_mutations.add(mut_positions)
 
     et = time.time() - t0
     speed = '{:.3f} it/s'.format(iteration / et)
