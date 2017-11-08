@@ -6,6 +6,7 @@ from drawer import draw_polygons
 from genome import flip_mutate
 from genome import rand_positions
 from drawer import __file__ as drawer__file__
+import argparse
 import sys
 import time
 import os
@@ -13,18 +14,20 @@ import os
 
 BASES = '01'
 N_POLYGONS = 5
-STOP = 200000
+STOP = 10 ** 6
 SAVE_INTERVAL = STOP / 10
 MIN_SAVE_DT = 60
 VISIBLE_DELTA_EV = 10 ** 6
 
 
-def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
+def main(options):
     """
     Simplest GA main function.
     """
+    target = options.target
+    n_polygons = options.n_polygons
     min_save_dt = 0.5
-    print('drawing {} with {} polygons'.format(target, n_polygons))
+    print('drawing {} with {} polygons'.format(options.target, n_polygons))
 
     def save_progress():
         print('Save image...',)
@@ -41,6 +44,7 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
                 it=iteration, ev=round(father_evaluation, 4), delta=delta_evaluation, fails=failed_iterations
                 )
             )
+        # Save mutations
         mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
         with open(mutations_dst, 'w') as fp:
             fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
@@ -63,20 +67,23 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
         print('{} skipped evaluation {:.4f} s'.format(n_skipped_evaluations, t_ev_avoided))
         print('Time saved           : {:.2f} m'.format((t_ev_avoided - t_sk_tot) / 60))
 
-    print('target: {}'.format(repr(target)))
-    print('n_polygons: {}'.format(n_polygons))
-    n_total_sides = n_polygons * max_sides
+    n_total_sides = n_polygons * options.max_sides
+    print('target: {}'.format(repr(options.target)))
+    print('n_polygons: {}'.format(options.n_polygons))
     print('n_total_sides: {}'.format(n_total_sides))
 
-    evaluator = ImageEvaluator(target)
+    ### START ###
+    evaluator = ImageEvaluator(options.target)
     image_size = evaluator.target_size
     polygons_encoder = PolygonsEncoder(
-        image_size, n_total_sides, min_sides=min_sides, max_sides=max_sides)
+        image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
     genome_size = polygons_encoder.genome_size
+
     father = polygons_encoder.generate()
     father_im_recipe = polygons_encoder.decode(father)
     father_phenotype = draw_polygons(image_size, father_im_recipe['polygons'],
-        background_color=father_im_recipe['background'], image_mode=image_mode)
+        background_color=father_im_recipe['background'],
+        target_image_mode=options.image_mode)
     father_evaluation = evaluator.evaluate(father_phenotype)
     best_image = father_phenotype
 
@@ -92,7 +99,7 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
     last_saved_ev = father_evaluation
     while father_evaluation:
         iteration += 1
-        if iteration == STOP:
+        if iteration == options.iterations:
             break
 
         # frozenset is to cache bad mutations
@@ -112,7 +119,8 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
         child = flip_mutate(mut_positions, father)
         child_im_recipe = polygons_encoder.decode(child)
         child_phenotype = draw_polygons(image_size, child_im_recipe['polygons'],
-            background_color=child_im_recipe['background'], image_mode=image_mode)
+            background_color=child_im_recipe['background'],
+            target_image_mode=options.image_mode)
         child_evaluation = evaluator.evaluate(child_phenotype)
         n_evaluations += 1
         t_ev_tot += time.time() - t_ev_0
@@ -167,13 +175,28 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
     print(speed)
 
 
+def get_options():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('target', help='target image path')
+    parser.add_argument('-p', '--n-polygons', type=int, default=64,
+        help='number of polygons to use')
+    parser.add_argument('--min-sides', type=int, default=3)
+    parser.add_argument('--max-sides', type=int, default=6)
+    parser.add_argument('--iterations', type=int, default=STOP,
+        help='number of iterations')
+    parser.add_argument('-m', '--image_mode', default='RGB')
+    options = parser.parse_args()
+    if "RANDOMSEED" in os.environ:
+        seed_text = os.environ["RANDOMSEED"]
+        try:
+            options.seed = int(seed_text)
+        except ValueError:
+            sys.exit("RANDOMSEED={0!r} invalid".format(seed_text))
+    else:
+        options.seed = None
+    return options
+
+
 if __name__ == '__main__':
-    args = sys.argv[1:]
-    if len(args) == 2:
-        target, n_polygons = args
-    elif len(args) == 1:
-        target, n_polygons = args[0], N_POLYGONS
-    elif len(args) == 0:
-        target, n_polygons = 'images/monnalisa.png', N_POLYGONS
-    print('n_polygons =', n_polygons)
-    main(target, int(n_polygons))
+    options = get_options()
+    main(options)
