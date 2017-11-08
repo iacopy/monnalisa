@@ -16,6 +16,7 @@ N_POLYGONS = 5
 STOP = 200000
 SAVE_INTERVAL = STOP / 10
 MIN_SAVE_DT = 60
+VISIBLE_DELTA_EV = 10 ** 6
 
 
 def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
@@ -78,7 +79,8 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
     good_mutations = Counter()
     bad_mutations = set()
     t0 = time.time()
-    last_saved = t0
+    last_saved_t = t0
+    last_saved_ev = father_evaluation
     while father_evaluation:
         iteration += 1
         if iteration == STOP:
@@ -107,24 +109,26 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
         t_ev_tot += time.time() - t_ev_0
 
         if child_evaluation < father_evaluation:
-            bad_mutations = set()
-            good_mutations.update(mut_positions)
-            delta_evaluation = father_evaluation - child_evaluation
+            tt = time.time()
             best_image = child_phenotype
             father_evaluation = child_evaluation
             father = child
 
-            tt = time.time()
+            bad_mutations = set()
+            good_mutations.update(mut_positions)
+            delta_evaluation = father_evaluation - child_evaluation
+            delta_saved_ev = last_saved_ev - child_evaluation
             et = tt - t0
             speed = '{:.3f} it/s'.format(iteration / et)
             print('Success: {ev:,} - {it:,}it/{t:.1f}m ({v})'.format(
                 it=iteration, ev=child_evaluation, t=et / 60, v=speed))
-            dt = tt - last_saved
-            if dt > min_save_dt:
+            dt = tt - last_saved_t
+            if dt > min_save_dt and delta_saved_ev >= VISIBLE_DELTA_EV:
 
                 save_progress()
 
-                last_saved = time.time()
+                last_saved_t = time.time()
+                last_saved_ev = child_evaluation
                 if dt < MIN_SAVE_DT:
                     min_save_dt = min_save_dt * 2
                 print('Next saving after {:.1f} s'.format(min_save_dt))
