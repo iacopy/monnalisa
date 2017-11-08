@@ -44,8 +44,11 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
         mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
         with open(mutations_dst, 'w') as fp:
             fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
-            fp.write('Positive mutations: {}\n\n'.format(len(good_mutation_counter)))
-            fp.write('Negative mutations: {}\n\n'.format(len(bad_mutation_counter)))
+            g_mut = sum(good_mutation_counter.values())
+            b_mut = sum(bad_mutation_counter.values())
+            fp.write('Positive mutations: {:,}\n\n'.format(g_mut))
+            fp.write('Negative mutations: {:,}\n\n'.format(b_mut))
+            fp.write('Success rate: {:.4%}\n\n'.format(g_mut / b_mut))
             for position in range(polygons_encoder.genome_size):
                 fp.write('{:<5}: {}\n'.format(
                     position,
