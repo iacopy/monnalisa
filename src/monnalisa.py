@@ -44,9 +44,14 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
         mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
         with open(mutations_dst, 'w') as fp:
             fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
-            fp.write('Positive mutations: {}\n\n'.format(len(good_mutations)))
+            fp.write('Positive mutations: {}\n\n'.format(len(good_mutation_counter)))
+            fp.write('Negative mutations: {}\n\n'.format(len(bad_mutation_counter)))
             for position in range(polygons_encoder.genome_size):
-                fp.write('{:<5}: {}\n'.format(position, good_mutations.get(position, 0) * '='))
+                fp.write('{:<5}: {}\n'.format(
+                    position,
+                    good_mutation_counter.get(position, 0) * '+' + bad_mutation_counter.get(position, 0) * '-'
+                    )
+                )
         print('saved {} and {}'.format(dst, stats_filepath))
 
         print('Bad mutation overhead: {:.4f} s'.format(t_sk_tot))
@@ -76,7 +81,8 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
     n_evaluations = n_skipped_evaluations = 0
     t_sk_tot = t_ev_tot = 0
     failed_iterations = 0
-    good_mutations = Counter()
+    good_mutation_counter = Counter()
+    bad_mutation_counter = Counter()
     bad_mutations = set()
     t0 = time.time()
     last_saved_t = t0
@@ -115,7 +121,7 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
             father = child
 
             bad_mutations = set()
-            good_mutations.update(mut_positions)
+            good_mutation_counter.update(mut_positions)
             delta_evaluation = father_evaluation - child_evaluation
             delta_saved_ev = last_saved_ev - child_evaluation
             et = tt - t0
@@ -136,6 +142,7 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
             failed_iterations += 1
             if len(mut_positions) < 3:
                 bad_mutations.add(mut_positions)
+            bad_mutation_counter.update(mut_positions)
 
     et = time.time() - t0
     speed = '{:.3f} it/s'.format(iteration / et)
