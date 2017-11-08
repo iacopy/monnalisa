@@ -85,7 +85,7 @@ class PolygonsEncoder:
         self.colors_channels = 4
         n_polygons = int(n_total_sides / max_sides)
         self.genome_size = self.color_bits * self.colors_channels + \
-            n_total_sides * self.width_bits * self.height_bits + \
+            n_total_sides * (self.width_bits + self.height_bits) + \
             n_polygons * (self.sides_bits + self.color_bits * self.colors_channels)
         self.index = 0
 
