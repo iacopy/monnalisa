@@ -119,19 +119,19 @@ def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
 
         if child_evaluation < father_evaluation:
             tt = time.time()
+            delta_evaluation = father_evaluation - child_evaluation
             best_image = child_phenotype
             father_evaluation = child_evaluation
             father = child
 
             bad_mutations = set()
             good_mutation_counter.update(mut_positions)
-            delta_evaluation = father_evaluation - child_evaluation
-            delta_saved_ev = last_saved_ev - child_evaluation
             et = tt - t0
             speed = '{:.3f} it/s'.format(iteration / et)
             print('Success: {ev:,} - {it:,}it/{t:.1f}m ({v})'.format(
                 it=iteration, ev=child_evaluation, t=et / 60, v=speed))
             dt = tt - last_saved_t
+            delta_saved_ev = last_saved_ev - child_evaluation
             if dt > min_save_dt and delta_saved_ev >= VISIBLE_DELTA_EV:
 
                 save_progress()
