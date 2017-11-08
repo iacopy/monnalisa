@@ -12,13 +12,13 @@ import os
 
 
 BASES = '01'
-N_TRIANGLES = 5
-STOP = 1000000
+N_POLYGONS = 5
+STOP = 200000
 SAVE_INTERVAL = STOP / 10
-MIN_SAVE_DT = 10
+MIN_SAVE_DT = 60
 
 
-def main(target, n_polygons, image_mode='RGB'):
+def main(target, n_polygons, min_sides=3, max_sides=4, image_mode='RGB'):
     """
     Simplest GA main function.
     """
@@ -62,7 +62,7 @@ def main(target, n_polygons, image_mode='RGB'):
     evaluator = ImageEvaluator(target)
     image_size = evaluator.target_size
     polygons_encoder = PolygonsEncoder(
-        image_size, n_total_sides, min_sides=3, max_sides=4)
+        image_size, n_total_sides, min_sides=min_sides, max_sides=max_sides)
     genome_size = polygons_encoder.genome_size
     father = polygons_encoder.generate()
     father_im_recipe = polygons_encoder.decode(father)
@@ -115,8 +115,10 @@ def main(target, n_polygons, image_mode='RGB'):
             father = child
 
             tt = time.time()
-            speed = '{:.3f} it/s'.format(iteration / (tt - t0))
-            print('success at {:,}: {:.4f} - {}'.format(iteration, child_evaluation, speed))
+            et = tt - t0
+            speed = '{:.3f} it/s'.format(iteration / et)
+            print('Success: {ev:,} - {it:,}it/{t:.1f}m ({v})'.format(
+                it=iteration, ev=child_evaluation, t=et / 60, v=speed))
             dt = tt - last_saved
             if dt > min_save_dt:
 
@@ -125,8 +127,7 @@ def main(target, n_polygons, image_mode='RGB'):
                 last_saved = time.time()
                 if dt < MIN_SAVE_DT:
                     min_save_dt = min_save_dt * 2
-                else:
-                    min_save_dt = min_save_dt / 2
+                print('Next saving after {:.1f} s'.format(min_save_dt))
         else:
             failed_iterations += 1
             if len(mut_positions) < 3:
@@ -160,5 +161,5 @@ if __name__ == '__main__':
         target, n_polygons = args[0], N_POLYGONS
     elif len(args) == 0:
         target, n_polygons = 'images/monnalisa.png', N_POLYGONS
-
+    print('n_polygons =', n_polygons)
     main(target, int(n_polygons))
