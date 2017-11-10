@@ -140,8 +140,13 @@ class PolygonsEncoder:
         return ''.join([choice(BASES) for _ in range(self.genome_size)])
 
 
-def draw_polygons(image_size, polygons, background_color='white', image_mode='RGB'):
-    im = Image.new(image_mode, image_size, color=background_color)
+def draw_polygons(image_size, polygons, background_color='white',
+                  target_image_mode='RGB'):
+    """
+    Create an RGB (by default) image and draw `polygons` on it
+    in RGBA mode (with alpha).
+    """
+    im = Image.new(target_image_mode, image_size, color=background_color)
     drawer = ImageDraw.Draw(im, 'RGBA')
     for points, color in polygons:
         drawer.polygon(points, color)
@@ -149,8 +154,8 @@ def draw_polygons(image_size, polygons, background_color='white', image_mode='RG
 
 
 class ImageEvaluator:
-    def __init__(self, target_image, mode='RGB'):
-        im = Image.open(target_image).convert(mode)
+    def __init__(self, target_image, target_image_mode='RGB'):
+        im = Image.open(target_image).convert(target_image_mode)
         dirpath, filename = os.path.split(target_image)
         name, ext = os.path.splitext(filename)
         self.target_dst_dir = os.path.join(dirpath, name)
@@ -158,7 +163,8 @@ class ImageEvaluator:
             os.makedirs(self.target_dst_dir)
         except FileExistsError:
             print('Directory already exists:', self.target_dst_dir)
-        im.save(os.path.join(self.target_dst_dir, name + '_' + mode + ext))
+        im.save(os.path.join(
+            self.target_dst_dir, name + '_' + target_image_mode + ext))
         self.target_image = im
         self.target_size = im.size
         self.target_arr = np.asarray(im.getdata())

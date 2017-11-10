@@ -4,8 +4,10 @@ from drawer import PolygonsEncoder
 from drawer import ImageEvaluator
 from drawer import draw_polygons
 from genome import flip_mutate
-from genome import rand_positions
+from genome import get_rand_positions
+from genome import slow_rand_weighted_mut_positions
 from drawer import __file__ as drawer__file__
+from random import randrange
 import argparse
 import sys
 import time
@@ -18,6 +20,8 @@ STOP = 10 ** 6
 SAVE_INTERVAL = STOP / 10
 MIN_SAVE_DT = 60
 VISIBLE_DELTA_EV = 10 ** 6
+K_MUT_INCREASE = 0.0001
+MUT_POS_LEARNING_RATE = 1.05
 
 
 def main(options):
@@ -26,6 +30,7 @@ def main(options):
     """
     target = options.target
     n_polygons = options.n_polygons
+
     min_save_dt = 0.5
     print('drawing {} with {} polygons'.format(options.target, n_polygons))
 
@@ -45,20 +50,22 @@ def main(options):
                 )
             )
         # Save mutations
-        mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut+.txt'.format(n_polygons))
+        mutations_dst = os.path.join(evaluator.target_dst_dir, 'p{}-mut.txt'.format(n_polygons))
         with open(mutations_dst, 'w') as fp:
             fp.write('Genome length: {}\n'.format(polygons_encoder.genome_size))
             g_mut = sum(good_mutation_counter.values())
             b_mut = sum(bad_mutation_counter.values())
-            fp.write('Positive mutations: {:,}\n\n'.format(g_mut))
-            fp.write('Negative mutations: {:,}\n\n'.format(b_mut))
+            fp.write('Positive mutations: {:,}\n'.format(g_mut))
+            fp.write('Negative mutations: {:,}\n'.format(b_mut))
             fp.write('Success rate: {:.4%}\n\n'.format(g_mut / b_mut))
             for position in range(polygons_encoder.genome_size):
                 fp.write('{:<5}: {}\n'.format(
                     position,
-                    good_mutation_counter.get(position, 0) * '+' + bad_mutation_counter.get(position, 0) * '-'
+                    good_mutation_counter.get(position, 0) * '+' + bad_mutation_counter.get(position, 0) * '-' + \
+                        ' {:.6f}'.format(p_mutations[position])
                     )
                 )
+            fp.write('\nsum(p) = {:.2f}\n'.format(sum(p_mutations)))
         print('saved {} and {}'.format(dst, stats_filepath))
 
         print('Bad mutation overhead: {:.4f} s'.format(t_sk_tot))
@@ -78,6 +85,7 @@ def main(options):
     polygons_encoder = PolygonsEncoder(
         image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
     genome_size = polygons_encoder.genome_size
+    mut_pos_learning_rate = 1 / genome_size
 
     father = polygons_encoder.generate()
     father_im_recipe = polygons_encoder.decode(father)
@@ -87,23 +95,31 @@ def main(options):
     father_evaluation = evaluator.evaluate(father_phenotype)
     best_image = father_phenotype
 
-    iteration = 0
-    n_evaluations = n_skipped_evaluations = 0
-    t_sk_tot = t_ev_tot = 0
-    failed_iterations = 0
+    # Mutations
+    k_mut = 1.0
+    p_mutations = [k_mut / genome_size] * genome_size
     good_mutation_counter = Counter()
     bad_mutation_counter = Counter()
     bad_mutations = set()
+
+    # Stats
+    n_evaluations = n_skipped_evaluations = 0
+    t_sk_tot = t_ev_tot = 0
+    failed_iterations = 0
+    last_saved_ev = father_evaluation
+
     t0 = time.time()
     last_saved_t = t0
-    last_saved_ev = father_evaluation
+    iteration = 0
+
     while father_evaluation:
         iteration += 1
         if iteration == options.iterations:
             break
 
         # frozenset is to cache bad mutations
-        mut_positions = frozenset(rand_positions(genome_size, 1.0 / genome_size))
+        #mut_positions = frozenset(get_rand_positions(genome_size, k_mut / genome_size))
+        mut_positions = frozenset(slow_rand_weighted_mut_positions(genome_size, p_mutations))
 
         # Check bad mutations
         t_sk_ev_0 = time.time()
@@ -132,6 +148,18 @@ def main(options):
             father_evaluation = child_evaluation
             father = child
 
+            for pos in mut_positions:
+                new_p = min(p_mutations[pos] * MUT_POS_LEARNING_RATE, 1.0)
+                delta = new_p - p_mutations[pos]
+                p_mutations[pos] = new_p
+                p_mutations[-pos] -= delta
+                if pos < genome_size - 1:
+                    p_mutations[pos + 1] += delta
+                    p_mutations[randrange(genome_size)] -= delta
+                if pos > 0:
+                    p_mutations[pos - 1] += delta
+                    p_mutations[randrange(genome_size)] -= delta
+
             bad_mutations = set()
             good_mutation_counter.update(mut_positions)
             et = tt - t0
@@ -150,6 +178,12 @@ def main(options):
                     min_save_dt = min_save_dt * 2
                 print('Next saving after {:.1f} s'.format(min_save_dt))
         else:
+            for pos in mut_positions:
+                new_p = p_mutations[pos] / MUT_POS_LEARNING_RATE
+                delta = p_mutations[pos] - new_p
+                p_mutations[pos] -= delta
+                p_mutations[-pos] += delta
+
             failed_iterations += 1
             if len(mut_positions) < 3:
                 bad_mutations.add(mut_positions)

@@ -7,14 +7,6 @@ def generate(bases, length):
     return ''.join([choice(bases) for _ in range(length)])
 
 
-def rand_positions(length, mutation_rate):
-    """
-    Extract a random number of random positions within `length`, given
-    a per-basis `mutation_rate`.
-    """
-    return [i for i in range(length) if rand() <= mutation_rate]
-
-
 def flip_mutate(positions, genome):
     """
     Flip `genome` bases in `positions`.
@@ -28,3 +20,17 @@ def flip_mutate(positions, genome):
         else:
             ret[pos] = '0'
     return ''.join(ret)
+
+
+def get_rand_positions(length, mutation_rate):
+    """
+    Extract a random number of random positions within `length`, given
+    a per-basis `mutation_rate`.
+
+    n!/(k!(n-k)!)*(1/n^k) * (1 -1/n)^(n-k)
+    """
+    return [i for i in range(length) if rand() <= mutation_rate]
+
+def slow_rand_weighted_mut_positions(genome_length, mutation_rates):
+    return [i for i in range(genome_length) if rand() <= mutation_rates[i]]
+
