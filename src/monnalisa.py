@@ -20,8 +20,9 @@ STOP = 10 ** 6
 SAVE_INTERVAL = STOP / 10
 MIN_SAVE_DT = 60
 VISIBLE_DELTA_EV = 10 ** 6
+INITIAL_K_MUT = 1.0
 K_MUT_INCREASE = 0.0001
-MUT_POS_LEARNING_RATE = 1.05
+MUT_POS_LEARNING_RATE = 1.001
 
 
 def main(options):
@@ -30,6 +31,7 @@ def main(options):
     """
     target = options.target
     n_polygons = options.n_polygons
+    pos_p_mut_changes = options.p_position
 
     min_save_dt = 0.5
     print('drawing {} with {} polygons'.format(options.target, n_polygons))
@@ -96,7 +98,7 @@ def main(options):
     best_image = father_phenotype
 
     # Mutations
-    k_mut = 1.0
+    k_mut = INITIAL_K_MUT
     p_mutations = [k_mut / genome_size] * genome_size
     good_mutation_counter = Counter()
     bad_mutation_counter = Counter()
@@ -118,8 +120,10 @@ def main(options):
             break
 
         # frozenset is to cache bad mutations
-        #mut_positions = frozenset(get_rand_positions(genome_size, k_mut / genome_size))
-        mut_positions = frozenset(slow_rand_weighted_mut_positions(genome_size, p_mutations))
+        if pos_p_mut_changes:
+            mut_positions = frozenset(slow_rand_weighted_mut_positions(genome_size, p_mutations))
+        else:
+            mut_positions = frozenset(get_rand_positions(genome_size, k_mut / genome_size))
 
         # Check bad mutations
         t_sk_ev_0 = time.time()
@@ -142,30 +146,33 @@ def main(options):
         t_ev_tot += time.time() - t_ev_0
 
         if child_evaluation < father_evaluation:
+            # IMPROVEMENT
             tt = time.time()
             delta_evaluation = father_evaluation - child_evaluation
             best_image = child_phenotype
             father_evaluation = child_evaluation
             father = child
 
-            for pos in mut_positions:
-                new_p = min(p_mutations[pos] * MUT_POS_LEARNING_RATE, 1.0)
-                delta = new_p - p_mutations[pos]
-                p_mutations[pos] = new_p
-                p_mutations[-pos] -= delta
-                if pos < genome_size - 1:
-                    p_mutations[pos + 1] += delta
-                    p_mutations[randrange(genome_size)] -= delta
-                if pos > 0:
-                    p_mutations[pos - 1] += delta
-                    p_mutations[randrange(genome_size)] -= delta
+            if pos_p_mut_changes:
+                for pos in mut_positions:
+                    new_p = min(p_mutations[pos] * MUT_POS_LEARNING_RATE, 1.0)
+                    delta = new_p - p_mutations[pos]
+                    p_mutations[pos] = new_p
+                    p_mutations[-pos] -= delta
+                    if pos < genome_size - 1:
+                        p_mutations[pos + 1] += delta
+                        p_mutations[randrange(genome_size)] -= delta
+                    if pos > 0:
+                        p_mutations[pos - 1] += delta
+                        p_mutations[randrange(genome_size)] -= delta
 
             bad_mutations = set()
             good_mutation_counter.update(mut_positions)
             et = tt - t0
             speed = '{:.3f} it/s'.format(iteration / et)
-            print('Success: {ev:,} - {it:,}it/{t:.1f}m ({v})'.format(
-                it=iteration, ev=child_evaluation, t=et / 60, v=speed))
+            print('Success: {ev:,} - {np} polygons - {it:,} it/{t:.1f}m ({v})'.format(
+                it=iteration, ev=child_evaluation, np=len(child_im_recipe['polygons']),
+                t=et / 60, v=speed))
             dt = tt - last_saved_t
             delta_saved_ev = last_saved_ev - child_evaluation
             if dt > min_save_dt and delta_saved_ev >= VISIBLE_DELTA_EV:
@@ -178,11 +185,16 @@ def main(options):
                     min_save_dt = min_save_dt * 2
                 print('Next saving after {:.1f} s'.format(min_save_dt))
         else:
-            for pos in mut_positions:
-                new_p = p_mutations[pos] / MUT_POS_LEARNING_RATE
-                delta = p_mutations[pos] - new_p
-                p_mutations[pos] -= delta
-                p_mutations[-pos] += delta
+            k_mut += K_MUT_INCREASE
+            k_mut = min(k_mut, genome_size / 2)
+
+            if pos_p_mut_changes:
+                # Modifica la probabilita' di mutazione delle singole posizioni
+                for pos in mut_positions:
+                    new_p = p_mutations[pos] / MUT_POS_LEARNING_RATE
+                    delta = p_mutations[pos] - new_p
+                    p_mutations[pos] -= delta
+                    p_mutations[-pos] += delta
 
             failed_iterations += 1
             if len(mut_positions) < 3:
@@ -219,6 +231,9 @@ def get_options():
     parser.add_argument('--iterations', type=int, default=STOP,
         help='number of iterations')
     parser.add_argument('-m', '--image_mode', default='RGB')
+    parser.add_argument('--p-position', action='store_true',
+        help='enable single position probability mutations (experimental)')
+
     options = parser.parse_args()
     if "RANDOMSEED" in os.environ:
         seed_text = os.environ["RANDOMSEED"]
