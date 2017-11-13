@@ -83,13 +83,18 @@ class PolygonsEncoder:
         self.sides_bits = ceil(log(sides_span, 2))
         self.color_bits = ceil(log(256, 2))
         self.colors_channels = 4
+        self.visible_bits = 1
         n_polygons = int(n_total_sides / max_sides)
         self.genome_size = self.color_bits * self.colors_channels + \
             n_total_sides * (self.width_bits + self.height_bits) + \
-            n_polygons * (self.sides_bits + self.color_bits * self.colors_channels)
+            n_polygons * (self.visible_bits + self.sides_bits + self.color_bits * self.colors_channels)
         self.index = 0
+        self.polygons = []
 
-    def _read(self, sequence, n_bits):
+    def _read(self, sequence, n_bits, info=''):
+        """
+        :param info: annotate the sequence when decoding.
+        """
         chunk = sequence[self.index: self.index + n_bits]
         dec = int(chunk, 2)
         #print('chunk = {}, dec = {}'.format(chunk, dec), end=' ')
@@ -112,16 +117,19 @@ class PolygonsEncoder:
                 for _ in range(self.colors_channels)]
         )
 
+        self.annotations[info].append((self.index, self.index + n_bits))
+
     def decode(self, sequence):
         self.index = 0
         polygons = []
+        annotations = {}
+        annotations['visibility'] = []  # list of visibility bases
         #print('Decoding sequence', sequence, len(sequence))
-        n_chunks = 0
         bg_color = self._read_color(sequence)
         while self.index < len(sequence):
-            #print(self.index, n_chunks)
-            n_chunks += 1
             try:
+                annotations['visibility'].append(self.index)
+                visible = self._read(sequence, self.visible_bits)
                 n_sides = self.sides[self._read(sequence, self.sides_bits)]
                 #print('n_sides =', n_sides)
                 # read polygon
@@ -133,11 +141,24 @@ class PolygonsEncoder:
                 #print(err)
                 break
             else:
-                polygons.append((points, color))
-        return {'background': bg_color, 'polygons': polygons}
+                if visible:
+                    polygons.append((points, color))
+        return {'background': bg_color, 'polygons': polygons,
+                'annotations': annotations}
 
-    def generate(self):
-        return ''.join([choice(BASES) for _ in range(self.genome_size)])
+    def generate(self, set_visibility=None):
+        """
+        :param set_visibility: set all polygons visible or not.
+        """
+        pre_seq = [choice(BASES) for _ in range(self.genome_size)]
+        if set_visibility is not None:
+            # print('change visibility to', str(int(set_visibility)))
+            decoded = self.decode(''.join(pre_seq))
+            for polygon_visibility_pos in decoded['annotations']['visibility']:
+                # print('{} = {} => {}'.format(
+                #     polygon_visibility_pos, pre_seq[polygon_visibility_pos], set_visibility))
+                pre_seq[polygon_visibility_pos] = str(int(set_visibility))
+        return ''.join(pre_seq)
 
 
 def draw_polygons(image_size, polygons, background_color='white',

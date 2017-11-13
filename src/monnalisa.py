@@ -89,7 +89,7 @@ def main(options):
     genome_size = polygons_encoder.genome_size
     mut_pos_learning_rate = 1 / genome_size
 
-    father = polygons_encoder.generate()
+    father = polygons_encoder.generate(set_visibility='1')
     father_im_recipe = polygons_encoder.decode(father)
     father_phenotype = draw_polygons(image_size, father_im_recipe['polygons'],
         background_color=father_im_recipe['background'],
