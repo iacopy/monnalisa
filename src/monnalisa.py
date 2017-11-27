@@ -9,9 +9,10 @@ from genome import slow_rand_weighted_mut_positions
 from drawer import __file__ as drawer__file__
 from random import randrange
 import argparse
+import datetime
+import os
 import sys
 import time
-import os
 
 
 BASES = '01'
@@ -38,10 +39,12 @@ def main(options):
 
     def save_progress():
         print('Save image...',)
+        now = datetime.datetime.now()
         dst = os.path.join(
             evaluator.target_dst_dir,
-            '{name}_i{i}-t{t}-mse{mse:.4f}.png'.format(
-                name=os.path.basename(target), i=iteration, t=n_polygons, mse=father_evaluation
+            '{name}_p{p}_t{t}_i{i}-mse{mse:.3f}.png'.format(
+                name=os.path.basename(target), t=now.strftime('%Y%m%d%H%M%S'),
+                i=iteration, p=n_polygons, mse=father_evaluation
             )
         )
         best_image.save(dst)
