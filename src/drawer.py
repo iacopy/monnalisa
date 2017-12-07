@@ -186,7 +186,9 @@ class ImageEvaluator:
             print('Directory already exists:', self.target_dst_dir)
         im.save(os.path.join(
             self.target_dst_dir, name + '_' + target_image_mode + ext))
+        self.target_filepath = target_image
         self.target_image = im
+        self.target_image_mode = target_image_mode
         self.target_size = im.size
         self.target_arr = np.asarray(im.getdata())
         self.n_data = len(self.target_arr)
@@ -198,6 +200,17 @@ class ImageEvaluator:
         """
         self.candidate_arr[:] = image.getdata()
         return ((self.target_arr - self.candidate_arr) ** 2).sum()
+
+
+def evaluate(polygons_encoder, evaluator, genome):
+    """Utility function.
+    """
+    recipe = polygons_encoder.decode(genome)
+    phenotype = draw_polygons(evaluator.target_size, recipe['polygons'],
+        background_color=recipe['background'],
+        target_image_mode=evaluator.target_image_mode)
+    evaluation = evaluator.evaluate(phenotype)
+    return dict(genome=genome, phenotype=phenotype, evaluation=evaluation)
 
 
 def demo():
