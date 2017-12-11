@@ -4,10 +4,12 @@ from itertools import combinations
 from operator import attrgetter
 from operator import itemgetter
 from random import randrange
+from random import shuffle
 import argparse
 import datetime
 import os
 import sys
+import shutil
 import time
 
 import numpy as np
@@ -57,59 +59,68 @@ def main(options):
     genome_size = polygons_encoder.genome_size
     mut_pos_learning_rate = 1 / genome_size
 
-    islands = [Island(polygons_encoder, evaluator) for _ in range(options.n_islands)]
+    islands = tuple([Island(polygons_encoder, evaluator) for _ in range(options.n_islands)])
+    best_ev_offspring = islands[0].best  # arbitrary individual
     print('islands =', islands)
 
     while True:
         for i_isla, isla in enumerate(islands):
-            isla.run(options.crossover_freq)
+            delta = isla.run(options.crossover_freq)
 
             print('i = {i}, it = {it:,}, v = {ev:,}'.format(
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation']))
 
-            save_progress(isla, options)
+            if delta < 0:
+                dst = save_progress(isla, options)
+                isla_best_dst = os.path.join(evaluator.target_dst_dir, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
+                shutil.copy(dst, isla_best_dst)
 
-        offsprings = get_offsprings(islands)
-
-        ev_offsprings = [evaluate(polygons_encoder, evaluator, genome) for genome in offsprings]
-        offsprings_ev = [x['evaluation'] for x in ev_offsprings]
         islands_best_ev = [isla.best_evaluation for isla in islands]
-        destinations = islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev)
-        for i_offspring, i_island in destinations.items():
-            print('{} => {}'.format(i_offspring, i_island))
-            islands[i_island].set_best(ev_offsprings[i_offspring])
-            save_progress(islands[i_island], options)
+
+        f1_offsprings = get_offsprings([best_ev_offspring['genome']] + [isla.best['genome'] for isla in islands], n_crossovers=options.n_crossovers)
+        print('f1: {:,}'.format(len(f1_offsprings)))
+        f2_offsprings = get_offsprings(f1_offsprings, n_crossovers=options.n_crossovers)
+        print('f2: {:,}'.format(len(f2_offsprings)))
+        offsprings = f1_offsprings + f2_offsprings
+        ev_offsprings = [evaluate(polygons_encoder, evaluator, genome) for genome in offsprings]
+        ev_offsprings.sort(key=itemgetter('evaluation'))
+        if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
+            best_ev_offspring = ev_offsprings[0]
+            best_ev_offspring['phenotype'].save(os.path.join(evaluator.target_dst_dir, 'best-crossover.png'))
+        if best_ev_offspring['evaluation'] < min(islands_best_ev):
+            print('TOP offspring: {:,}'.format(best_ev_offspring['evaluation']))
+
+        if 0:  # TODO: do not lose genetic diff before allow migrations
+            offsprings_ev = [x['evaluation'] for x in ev_offsprings]
+            destinations = islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev)
+            for i_offspring, i_island in destinations.items():
+                print('{} => {}'.format(i_offspring, i_island))
+                islands[i_island].set_best(ev_offsprings[i_offspring])
+                save_progress(islands[i_island], options)
 
 
-def get_offsprings(islands):
-    """Recombinate best islands individuals with crossover.
+def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
+    """Recombinate parents individuals with crossover.
 
     Also keep parents information.
 
     Arguments:
-        islands {list} -- islands sources for crossovers
-
-    Returns:
-        dict -- map offsprings with their parents.
+        parents {list} -- parents sources for crossovers
     """
-
-    offsprings = {}
-    islands.sort(key=attrgetter('best_evaluation'), reverse=True)
-    for (isla_a_index, isla_b_index) in combinations(range(len(islands)), 2):
-        isla_a = islands[isla_a_index]
-        isla_b = islands[isla_b_index]
-        best_a = isla_a.best['genome']
-        best_b = isla_b.best['genome']
-        crossover_points = crossover.normal_rand_crossover_operator(best_a, best_b, min_n_events=0)
-        if crossover_points:
-            # otherwise no recombination, no new sequences
-            parents = {isla_a_index, isla_b_index}
-            for offspring in [
-                ''.join(c) for c in crossover.crossover(best_a, best_b, crossover_points)
-                ]:
-                # keep parents information
-                offsprings[offspring] = parents
-    return offsprings
+    offsprings = []
+    for (p_a_index, p_b_index) in combinations(range(len(parents)), 2):
+        p_a = parents[p_a_index]
+        p_b = parents[p_b_index]
+        for i in range(n_crossovers):
+            crossover_points = crossover.normal_rand_crossover_operator(p_a, p_b)
+            if crossover_points:
+                # otherwise no recombination, no new sequences
+                for offspring in [
+                    ''.join(c) for c in crossover.crossover(p_a, p_b, crossover_points)
+                    ]:
+                    offsprings.append(offspring)
+    shuffle(offsprings)
+    return offsprings[: n_max_offsprings]
 
 
 def islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev):
@@ -143,15 +154,20 @@ def get_options():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='target image path')
     parser.add_argument('-p', '--n-polygons', type=int, default=64,
-        help='number of polygons to use')
-    parser.add_argument('-i', '--n-islands', type=int, default=1)
+        help='number of polygons to use [default: %(default)s]')
+    parser.add_argument('-i', '--n-islands', type=int, default=2,
+        help='number of islands [default: %(default)s]')
     parser.add_argument('-c', '--crossover-freq', type=int, default=1000,
-        help='number of separate islands iterations between crossover')
-    parser.add_argument('--min-sides', type=int, default=3)
-    parser.add_argument('--max-sides', type=int, default=6)
+        help='number of separate islands iterations between crossover [default: %(default)s]')
+    parser.add_argument('-n', '--n-crossovers', type=int, default=1,
+        help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
+    parser.add_argument('-s', '--saving-freq', type=int, default=1000,
+        help='image saving frequency in iterations [default: %(default)s]')
+    parser.add_argument('--min-sides', type=int, default=3, help='[default: %(default)s]')
+    parser.add_argument('--max-sides', type=int, default=6, help='[default: %(default)s]')
     parser.add_argument('--iterations', type=int, default=STOP,
-        help='number of iterations')
-    parser.add_argument('-m', '--image_mode', default='RGB')
+        help='number of iterations [default: %(default)s]')
+    parser.add_argument('-m', '--image_mode', default='RGB', help='[default: %(default)s]')
     parser.add_argument('--p-position', action='store_true',
         help='enable single position probability mutations (experimental)')
 

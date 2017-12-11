@@ -23,6 +23,7 @@ def save_progress(island, options):
         )
     )
     island.best['phenotype'].save(dst)
+    return dst
 
 
 def save_mutations(evaluator, good_mutation_counter, bad_mutation_counter):

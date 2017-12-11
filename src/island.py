@@ -109,6 +109,7 @@ class Island:
 
         father_evaluation = self.best['evaluation']
         father_genome = self.best['genome']
+        starting_evaluation = father_evaluation
 
         # === Init local variables ===
 
@@ -167,6 +168,9 @@ class Island:
                 self.bad_mutation_counter.update(mut_positions)
 
                 self.fitness_fail(mut_positions, father_evaluation, child_evaluation)
+
+        # Return delta evaluation from run start
+        return father_evaluation - starting_evaluation
 
         #bench()
 
