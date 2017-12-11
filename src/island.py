@@ -1,12 +1,10 @@
 from collections import Counter
-from collections import namedtuple
 from hashlib import md5
 
-from genome import genetic_diff
+from evaluator import evaluate
 from genome import slow_rand_weighted_mut_positions
 from genome import get_rand_positions
 from genome import flip_mutate
-from drawer import evaluate
 import time
 
 

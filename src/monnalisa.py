@@ -1,28 +1,15 @@
 from __future__ import division
-from collections import Counter
 from itertools import combinations
-from operator import attrgetter
 from operator import itemgetter
-from random import randrange
 from random import shuffle
 import argparse
-import datetime
 import os
 import sys
 import shutil
-import time
-
-import numpy as np
 
 from drawer import PolygonsEncoder
-from drawer import ImageEvaluator
-from drawer import draw_polygons
-from drawer import evaluate
-from genome import flip_mutate
-from genome import genetic_diff
-from genome import get_rand_positions
-from genome import slow_rand_weighted_mut_positions
-from drawer import __file__ as drawer__file__
+from evaluator import ImageEvaluator
+from evaluator import evaluate
 from island import Island
 from save import save_progress
 import crossover

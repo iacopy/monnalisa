@@ -3,73 +3,9 @@ from math import log
 from PIL import Image
 from PIL import ImageDraw
 from random import choice
-import numpy as np
-import os
 
 
 BASES = '01'
-
-
-class TrianglesEncoder:
-
-    def __init__(self, image_size, n_triangles):
-        self.image_size = image_size
-        self.n_triangles = n_triangles
-        self.frames_lengths = []
-        width, height = image_size
-        w_bit = ceil(log(width, 2))
-        h_bit = ceil(log(height, 2))
-        color_bit = ceil(log(256, 2))
-        for i in range(n_triangles):
-            for _ in range(3):
-                self.frames_lengths.append(w_bit)
-                self.frames_lengths.append(h_bit)
-            self.frames_lengths.append(color_bit)
-        self.w_bit = w_bit
-        self.h_bit = h_bit
-        self.color_bit = color_bit
-        self.genome_size = n_triangles * ((w_bit + h_bit) * 3 + color_bit)
-
-    def generate(self):
-        return ''.join([choice(BASES) for _ in range(self.genome_size)])
-
-    def decode(self, dna):
-        """
-        Da una sequenza binaria produce poligoni.
-        """
-        i = 0
-        w_bit, h_bit = self.w_bit, self.h_bit
-        color_bit = self.color_bit
-        ret = []
-        for i_triangle in range(self.n_triangles):
-            # print('i_triangle =', i_triangle)
-            triangle_points = []
-            for i_point in range(3):
-                # print('\ti_point =', i_point)
-                x_tuplet = dna[i: i + w_bit]
-                i += w_bit
-                y_tuplet = dna[i: i + h_bit]
-                i += h_bit
-                triangle_points.append((int(x_tuplet, 2), int(y_tuplet, 2)))
-                # print('\t\tx_tuplet =', x_tuplet)
-                # print('\t\ty_tuplet =', y_tuplet)
-                # print('\t\ttriangle_points =', triangle_points)
-
-            color_tuplet = dna[i: i + color_bit]
-            color = int(color_tuplet, 2)
-            i += color_bit
-            ret.append((tuple(triangle_points), color))
-        return ret
-
-
-def draw_triangles(image_size, triangles, background_color=255, save=False):
-    """Create an image and draw triangles on it.
-    """
-    im = Image.new('L', image_size, color=background_color)
-    drawer = ImageDraw.Draw(im)
-    for points, color in triangles:
-        drawer.polygon(points, outline=color)
-    return im
 
 
 class PolygonsEncoder:
@@ -160,6 +96,13 @@ class PolygonsEncoder:
                 pre_seq[polygon_visibility_pos] = str(int(set_visibility))
         return ''.join(pre_seq)
 
+    def draw(self, sequence, target_image_mode='RGB'):
+        decoded = self.decode(sequence)
+        return draw_polygons(
+            self.image_size, decoded['polygons'], decoded['background'],
+            target_image_mode=target_image_mode
+        )
+
 
 def draw_polygons(image_size, polygons, background_color='white',
                   target_image_mode='RGB'):
@@ -174,54 +117,12 @@ def draw_polygons(image_size, polygons, background_color='white',
     return im
 
 
-class ImageEvaluator:
-    def __init__(self, target_image, target_image_mode='RGB'):
-        im = Image.open(target_image).convert(target_image_mode)
-        dirpath, filename = os.path.split(target_image)
-        name, ext = os.path.splitext(filename)
-        self.target_dst_dir = os.path.join(dirpath, name)
-        try:
-            os.makedirs(self.target_dst_dir)
-        except FileExistsError:
-            print('Directory already exists:', self.target_dst_dir)
-        im.save(os.path.join(
-            self.target_dst_dir, name + '_' + target_image_mode + ext))
-        self.target_filepath = target_image
-        self.target_image = im
-        self.target_image_mode = target_image_mode
-        self.target_size = im.size
-        self.target_arr = np.asarray(im.getdata())
-        self.n_data = len(self.target_arr)
-        # Create here, one time, the numpy array, whose the creation is the bottleneck
-        self.candidate_arr = np.zeros(self.target_arr.shape, np.uint8)
-
-    def evaluate(self, image):
-        """Mean Squared Error
-        """
-        self.candidate_arr[:] = image.getdata()
-        return ((self.target_arr - self.candidate_arr) ** 2).sum()
-
-
-def evaluate(polygons_encoder, evaluator, genome):
-    """Utility function.
-    """
-    recipe = polygons_encoder.decode(genome)
-    phenotype = draw_polygons(evaluator.target_size, recipe['polygons'],
-        background_color=recipe['background'],
-        target_image_mode=evaluator.target_image_mode)
-    evaluation = evaluator.evaluate(phenotype)
-    return dict(genome=genome, phenotype=phenotype, evaluation=evaluation)
-
-
 def demo():
     image_size = 100, 100
-    encoder = TrianglesEncoder(image_size, 3)
+    encoder = PolygonsEncoder(image_size, 4)
     dna = encoder.generate()
     print(dna, len(dna))
-    triangles = encoder.decode(dna)
-    print(triangles)
-    im = Image.new('L', image_size, color=255)
-    draw_triangles(im, triangles)
+    im = encoder.draw(dna)
     im.save('drawed.png')
 
 
