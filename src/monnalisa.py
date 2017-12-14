@@ -74,8 +74,9 @@ def main(options):
         if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
             best_ev_offspring = ev_offsprings[0]
             best_ev_offspring['phenotype'].save(os.path.join(evaluator.target_dst_dir, 'best-crossover.png'))
+            print('New best crossover!', best_ev_offspring['evaluation'])
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
-            print('TOP offspring: {:,}'.format(best_ev_offspring['evaluation']))
+            print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
 
         if 0:  # TODO: do not lose genetic diff before allow migrations
             offsprings_ev = [x['evaluation'] for x in ev_offsprings]
