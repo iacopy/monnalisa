@@ -1,18 +1,17 @@
-from __future__ import division
+import argparse
+import os
+import shutil
+import sys
 from itertools import combinations
 from operator import itemgetter
 from random import shuffle
-import argparse
-import os
-import sys
-import shutil
 
+import crossover
 from drawer import PolygonsEncoder
-from evaluator import ImageEvaluator
-from evaluator import evaluate
+from evaluator import ImageEvaluator, evaluate
 from island import Island
 from save import save_progress
-import crossover
+
 
 BASES = '01'
 N_POLYGONS = 5

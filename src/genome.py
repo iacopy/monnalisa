@@ -1,9 +1,10 @@
 from collections import Counter
-from random import choice
-from random import choices
-from random import random as rand
-from random import sample
+from itertools import combinations
 from math import factorial as f
+from random import random as rand
+from random import choice, choices, sample
+
+from numpy import array
 
 
 def generate(bases, length):

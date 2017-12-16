@@ -1,10 +1,9 @@
+import time
 from collections import Counter
 from hashlib import md5
 
 from evaluator import evaluate
-from genome import get_rand_positions
-from genome import flip_mutate
-import time
+from genome import flip_mutate, get_rand_positions
 
 
 class Island:

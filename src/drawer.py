@@ -1,8 +1,7 @@
-from math import ceil
-from math import log
-from PIL import Image
-from PIL import ImageDraw
+from math import ceil, log
 from random import choice
+
+from PIL import Image, ImageDraw
 
 
 BASES = '01'
