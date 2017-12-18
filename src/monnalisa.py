@@ -9,8 +9,8 @@ from random import shuffle
 import crossover
 from drawer import PolygonsEncoder
 from evaluator import ImageEvaluator, evaluate
+from history import HistoryIO
 from island import Island
-from save import save_progress
 
 
 BASES = '01'
@@ -40,6 +40,21 @@ def main(options):
 
     islands = tuple([Island(polygons_encoder, evaluator) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
+
+    history_io = HistoryIO(options)
+    if history_io.exists():
+        if options.restart:
+            print('Resetting history', history_io.id)
+            history_io.init()
+        else:
+            print('Resuming existing history', history_io.id)
+            status = history_io.resume()
+            islands = status['islands']
+            best_ev_offspring = status['best_ev_offspring']
+    else:
+        print('Brand new history', history_io.id)
+        history_io.init()
+
     print('islands =', islands)
 
     while True:
@@ -50,8 +65,8 @@ def main(options):
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation']))
 
             if delta < 0:
-                dst = save_progress(isla, options)
-                isla_best_dst = os.path.join(evaluator.target_dst_dir, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
+                dst = history_io.save_island_best_image(isla)
+                isla_best_dst = os.path.join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 shutil.copy(dst, isla_best_dst)
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
@@ -65,10 +80,13 @@ def main(options):
         ev_offsprings.sort(key=itemgetter('evaluation'))
         if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
             best_ev_offspring = ev_offsprings[0]
-            best_ev_offspring['phenotype'].save(os.path.join(evaluator.target_dst_dir, 'best-crossover.png'))
-            print('New best crossover!', best_ev_offspring['evaluation'])
+            best_ev_offspring['phenotype'].save(os.path.join(history_io.dirpath, 'best-crossover.png'))
+            print('New best crossover! ev = {:,}'.format(best_ev_offspring['evaluation']))
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
+
+        status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
+        history_io.save(status)
 
 
 def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
@@ -142,6 +160,8 @@ def get_options():
     parser.add_argument('-m', '--image_mode', default='RGB', help='[default: %(default)s]')
     parser.add_argument('--p-position', action='store_true',
         help='enable single position probability mutations (experimental)')
+    parser.add_argument('--restart', default=False, action='store_true',
+        help='do not resume existing history, but *erase* it and restart [default=%(default)s]')
 
     options = parser.parse_args()
     if "RANDOMSEED" in os.environ:

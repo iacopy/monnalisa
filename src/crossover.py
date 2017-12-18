@@ -2,7 +2,6 @@
 Crossing over functions.
 """
 
-
 from random import normalvariate
 from random import sample
 
