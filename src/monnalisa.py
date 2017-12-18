@@ -2,16 +2,16 @@ import argparse
 import os
 import shutil
 import sys
+from functools import partial
 from itertools import combinations
 from operator import itemgetter
 from random import shuffle
 
 import crossover
 from drawer import PolygonsEncoder
-from evaluator import ImageEvaluator, evaluate
+from evaluator import ImageEvaluator, func_evaluate
 from history import HistoryIO
 from island import Island
-
 
 BASES = '01'
 N_POLYGONS = 5
@@ -33,12 +33,13 @@ def main(options):
     print('n_polygons: {}'.format(options.n_polygons))
     print('n_total_sides: {}'.format(n_total_sides))
 
-    evaluator = ImageEvaluator(options.target)
-    image_size = evaluator.target_size
+    im_eval = ImageEvaluator(options.target)
+    image_size = im_eval.target_size
     polygons_encoder = PolygonsEncoder(
         image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
+    evaluate = partial(func_evaluate, polygons_encoder, im_eval)
 
-    islands = tuple([Island(polygons_encoder, evaluator) for _ in range(options.n_islands)])
+    islands = tuple([Island(polygons_encoder, im_eval) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
 
     history_io = HistoryIO(options)
@@ -71,22 +72,35 @@ def main(options):
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
 
-        f1_offsprings = get_offsprings([best_ev_offspring['genome']] + [isla.best['genome'] for isla in islands], n_crossovers=options.n_crossovers)
-        print('f1: {:,}'.format(len(f1_offsprings)))
-        f2_offsprings = get_offsprings(f1_offsprings, n_crossovers=options.n_crossovers)
-        print('f2: {:,}'.format(len(f2_offsprings)))
-        offsprings = f1_offsprings + f2_offsprings
-        ev_offsprings = [evaluate(polygons_encoder, evaluator, genome) for genome in offsprings]
-        ev_offsprings.sort(key=itemgetter('evaluation'))
-        if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
-            best_ev_offspring = ev_offsprings[0]
-            best_ev_offspring['phenotype'].save(os.path.join(history_io.dirpath, 'best-crossover.png'))
-            print('New best crossover! ev = {:,}'.format(best_ev_offspring['evaluation']))
+        new_best_ev_offspring = mating(
+            islands, best_ev_offspring, evaluate, n_crossovers=options.n_crossovers
+        )
+        if new_best_ev_offspring:
+            print('New best crossover! ev = {:,}'.format(new_best_ev_offspring['evaluation']))
+            new_best_ev_offspring['phenotype'].save(os.path.join(history_io.dirpath, 'best-crossover.png'))
+            best_ev_offspring = new_best_ev_offspring
+
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
 
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
+
+
+def mating(islands, best_ev_offspring, evaluate, n_crossovers):
+    f1_offsprings = get_offsprings(
+        [best_ev_offspring['genome']] + [isla.best['genome'] for isla in islands],
+        n_crossovers=n_crossovers
+    )
+    f2_offsprings = get_offsprings(f1_offsprings, n_crossovers=n_crossovers)
+    print('f1: {:,}'.format(len(f1_offsprings)))
+    print('f2: {:,}'.format(len(f2_offsprings)))
+    offsprings = f1_offsprings + f2_offsprings
+
+    ev_offsprings = [evaluate(genome) for genome in offsprings]
+    ev_offsprings.sort(key=itemgetter('evaluation'))
+    if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
+        return ev_offsprings[0]
 
 
 def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
@@ -113,6 +127,7 @@ def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
     return offsprings[: n_max_offsprings]
 
 
+# XXX: unused function
 def islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev):
     """
     Assign offsprings to islands if good enough.

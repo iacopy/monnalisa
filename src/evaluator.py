@@ -1,5 +1,3 @@
-import os
-
 import numpy as np
 from PIL import Image
 
@@ -23,7 +21,7 @@ class ImageEvaluator:
         return ((self.target_arr - self.candidate_arr) ** 2).sum()
 
 
-def evaluate(polygons_encoder, evaluator, genome):
+def func_evaluate(polygons_encoder, evaluator, genome):
     """Utility function."""
     phenotype = polygons_encoder.draw(genome)
     evaluation = evaluator.evaluate(phenotype)

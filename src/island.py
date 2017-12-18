@@ -1,8 +1,9 @@
 import time
 from collections import Counter
+from functools import partial
 from hashlib import md5
 
-from evaluator import evaluate
+from evaluator import func_evaluate
 from genome import flip_mutate, get_rand_positions
 
 
@@ -12,6 +13,7 @@ class Island:
     def __init__(self, polygons_encoder, evaluator, k_mut=1.0):
         self.polygons_encoder = polygons_encoder
         self.evaluator = evaluator
+        self.evaluate = partial(func_evaluate, polygons_encoder, evaluator)
 
         # Mutations
         self.k_mut = k_mut
@@ -25,7 +27,7 @@ class Island:
         self.t_saved = 0
 
         genome = self.polygons_encoder.generate()
-        self.best = evaluate(polygons_encoder, evaluator, genome)
+        self.best = self.evaluate(genome)
         self.adam = genome
         self.id = md5(genome.encode()).hexdigest()
 
@@ -44,10 +46,8 @@ class Island:
         self.best = best
 
     def run(self, iterations=100000):
-        evaluator = self.evaluator
-        polygons_encoder = self.polygons_encoder
+        evaluate = self.evaluate
         genome_size = self.polygons_encoder.genome_size
-
         mut_rate = self.k_mut / genome_size
         start_iteration = self.iteration
 
@@ -83,7 +83,7 @@ class Island:
             # Evaluation (mutation, phenotype and evaluation)
             t_ev_0 = time.time()
             child_genome = flip_mutate(mut_positions, father_genome)
-            child_rv = evaluate(polygons_encoder, evaluator, child_genome)
+            child_rv = evaluate(child_genome)
             child_evaluation = child_rv['evaluation']
             n_evaluations += 1
             t_ev_tot += time.time() - t_ev_0
