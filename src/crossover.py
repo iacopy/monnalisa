@@ -1,9 +1,11 @@
+"""
+Crossing over functions.
+"""
+
+
 from random import normalvariate
 from random import sample
 
-###########################
-# Crossing over functions #
-###########################
 
 def crossover(seq1, seq2, points=()):
     """

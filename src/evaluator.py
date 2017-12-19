@@ -4,9 +4,6 @@ import numpy as np
 
 from drawer import draw_polygons
 
- #from skimage.measure import structural_similarity as ssim
- # ssim(hh, bc, multichannel=True)
-
 
 class ImageEvaluator:
     def __init__(self, target_image, target_image_mode='RGB'):

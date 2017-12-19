@@ -33,7 +33,6 @@ class PolygonsEncoder:
         """
         chunk = sequence[self.index: self.index + n_bits]
         dec = int(chunk, 2)
-        #print('chunk = {}, dec = {}'.format(chunk, dec), end=' ')
         self.index += n_bits
         return dec
 
@@ -53,28 +52,21 @@ class PolygonsEncoder:
                 for _ in range(self.colors_channels)]
         )
 
-        self.annotations[info].append((self.index, self.index + n_bits))
-
     def decode(self, sequence):
         self.index = 0
         polygons = []
         annotations = {}
         annotations['visibility'] = []  # list of visibility bases
-        #print('Decoding sequence', sequence, len(sequence))
         bg_color = self._read_color(sequence)
         while self.index < len(sequence):
             try:
                 annotations['visibility'].append(self.index)
                 visible = self._read(sequence, self.visible_bits)
                 n_sides = self.sides[self._read(sequence, self.sides_bits)]
-                #print('n_sides =', n_sides)
                 # read polygon
                 points = self._read_points(sequence, n_sides)
-                #print('points:', points)
                 color = self._read_color(sequence)
-                #print('color:', color)
             except ValueError as err:
-                #print(err)
                 break
             else:
                 if visible:
@@ -88,11 +80,8 @@ class PolygonsEncoder:
         """
         pre_seq = [choice(BASES) for _ in range(self.genome_size)]
         if set_visibility is not None:
-            # print('change visibility to', str(int(set_visibility)))
             decoded = self.decode(''.join(pre_seq))
             for polygon_visibility_pos in decoded['annotations']['visibility']:
-                # print('{} = {} => {}'.format(
-                #     polygon_visibility_pos, pre_seq[polygon_visibility_pos], set_visibility))
                 pre_seq[polygon_visibility_pos] = str(int(set_visibility))
         return ''.join(pre_seq)
 

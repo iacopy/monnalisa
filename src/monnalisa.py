@@ -26,11 +26,7 @@ def main(options):
     """
     Simplest GA main function.
     """
-    target = options.target
     n_polygons = options.n_polygons
-    pos_p_mut_changes = options.p_position
-
-    min_save_dt = 0.5
     print('drawing {} with {} polygons'.format(options.target, n_polygons))
 
     n_total_sides = n_polygons * options.max_sides
@@ -38,13 +34,10 @@ def main(options):
     print('n_polygons: {}'.format(options.n_polygons))
     print('n_total_sides: {}'.format(n_total_sides))
 
-    ### START ###
     evaluator = ImageEvaluator(options.target)
     image_size = evaluator.target_size
     polygons_encoder = PolygonsEncoder(
         image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
-    genome_size = polygons_encoder.genome_size
-    mut_pos_learning_rate = 1 / genome_size
 
     islands = tuple([Island(polygons_encoder, evaluator) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
@@ -77,14 +70,6 @@ def main(options):
             print('New best crossover!', best_ev_offspring['evaluation'])
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
-
-        if 0:  # TODO: do not lose genetic diff before allow migrations
-            offsprings_ev = [x['evaluation'] for x in ev_offsprings]
-            destinations = islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev)
-            for i_offspring, i_island in destinations.items():
-                print('{} => {}'.format(i_offspring, i_island))
-                islands[i_island].set_best(ev_offsprings[i_offspring])
-                save_progress(islands[i_island], options)
 
 
 def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
