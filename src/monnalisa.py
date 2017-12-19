@@ -73,7 +73,10 @@ def main(options):
         islands_best_ev = [isla.best_evaluation for isla in islands]
 
         new_best_ev_offspring = mating(
-            islands, best_ev_offspring, evaluate, n_crossovers=options.n_crossovers
+            islands, best_ev_offspring, evaluate,
+            f1_size=options.f1,
+            f2_size=options.f2,
+            n_crossovers=options.n_crossovers,
         )
         if new_best_ev_offspring:
             print('New best crossover! ev = {:,}'.format(new_best_ev_offspring['evaluation']))
@@ -87,12 +90,15 @@ def main(options):
         history_io.save(status)
 
 
-def mating(islands, best_ev_offspring, evaluate, n_crossovers):
+def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
     f1_offsprings = get_offsprings(
         [best_ev_offspring['genome']] + [isla.best['genome'] for isla in islands],
-        n_crossovers=n_crossovers
+        n_max_offsprings=f1_size,
+        n_crossovers=n_crossovers,
     )
-    f2_offsprings = get_offsprings(f1_offsprings, n_crossovers=n_crossovers)
+    f2_offsprings = get_offsprings(
+        f1_offsprings, n_max_offsprings=f2_size, n_crossovers=n_crossovers
+    )
     print('f1: {:,}'.format(len(f1_offsprings)))
     print('f2: {:,}'.format(len(f2_offsprings)))
     offsprings = f1_offsprings + f2_offsprings
@@ -103,7 +109,7 @@ def mating(islands, best_ev_offspring, evaluate, n_crossovers):
         return ev_offsprings[0]
 
 
-def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
+def get_offsprings(parents, n_max_offsprings=64, n_crossovers=1):
     """Recombinate parents individuals with crossover.
 
     Also keep parents information.
@@ -112,6 +118,7 @@ def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
         parents {list} -- parents sources for crossovers
     """
     offsprings = []
+    # TODO: randomize parents or parents indices
     for (p_a_index, p_b_index) in combinations(range(len(parents)), 2):
         p_a = parents[p_a_index]
         p_b = parents[p_b_index]
@@ -123,6 +130,9 @@ def get_offsprings(parents, n_crossovers=1, n_max_offsprings=64):
                     ''.join(c) for c in crossover.crossover(p_a, p_b, crossover_points)
                     ]:
                     offsprings.append(offspring)
+        # avoid explosion of combinations
+        if len(offsprings) >= n_max_offsprings:
+            break
     shuffle(offsprings)
     return offsprings[: n_max_offsprings]
 
@@ -168,6 +178,8 @@ def get_options():
         help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
     parser.add_argument('-s', '--saving-freq', type=int, default=1000,
         help='image saving frequency in iterations [default: %(default)s]')
+    parser.add_argument('--f1', type=int, default=32, help='f1 generation size')
+    parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
     parser.add_argument('--min-sides', type=int, default=3, help='[default: %(default)s]')
     parser.add_argument('--max-sides', type=int, default=6, help='[default: %(default)s]')
     parser.add_argument('--iterations', type=int, default=STOP,
