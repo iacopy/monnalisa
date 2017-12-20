@@ -41,12 +41,18 @@ def main(options):
 
     islands = tuple([Island(polygons_encoder, im_eval) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
+    status = {
+        'best_ev_offspring': best_ev_offspring,
+        'islands': islands,
+    }
 
     history_io = HistoryIO(options)
     if history_io.exists():
         if options.restart:
             print('Resetting history', history_io.id)
             history_io.init()
+            history_io.init_stats(status)
+            history_io.init_plot(status)
         else:
             print('Resuming existing history', history_io.id)
             status = history_io.resume()
@@ -55,6 +61,7 @@ def main(options):
     else:
         print('Brand new history', history_io.id)
         history_io.init()
+        history_io.init_stats(status, plot=True)
 
     print('islands =', islands)
 
@@ -88,6 +95,7 @@ def main(options):
 
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
+        history_io.update_stats(status, plot=True)
 
 
 def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):

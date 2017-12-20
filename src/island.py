@@ -30,6 +30,7 @@ class Island:
         self.best = self.evaluate(genome)
         self.adam = genome
         self.id = md5(genome.encode()).hexdigest()
+        self.short_id = self.id[:7]
 
     @property
     def best_evaluation(self):

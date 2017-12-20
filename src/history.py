@@ -13,6 +13,9 @@ from pprint import pformat
 p_join = os.path.join
 
 DATA_FILENAME = 'status.pkl'
+STATS_FILENAME = 'stats.csv'
+GNUPLOT_FILENAME = 'plot'
+PLOT_FILENAME = 'plot.png'
 
 
 def _get_id(options):
@@ -46,9 +49,15 @@ class HistoryIO:
         self.cleared_options = get_cleared_options(options)
         self.id = _get_id(self.cleared_options)
         self.dirpath = _get_history_dirpath(options, self.id)
-        self.filepath = p_join(self.dirpath, DATA_FILENAME)
-        self.opt_txt_fp = p_join(self.dirpath, 'options.txt')
+        self.filepath = self._path(DATA_FILENAME)
+        self.opt_txt_fp = self._path('options.txt')
+        self.stats_filepath = self._path('stats.csv')
+        self.gnuplot_script_path = self._path(GNUPLOT_FILENAME)
+        self.plot_path = self._path(PLOT_FILENAME)
         self.status = {}
+
+    def _path(self, *args):
+        return p_join(self.dirpath, *args)
 
     def init(self):
         if os.path.exists(self.dirpath):
@@ -109,3 +118,46 @@ class HistoryIO:
     def save(self, status):
         with open(self.filepath, 'wb') as fp:
             pickle.dump(status, fp)
+
+    def init_stats(self, status, plot=False):
+        islands = status['islands']
+        row = ['iteration', 'best crossover'] + ['is_' + isla.short_id for isla in islands]
+        self.write_stats_row('w', row)
+
+        if plot:
+            self.init_plot(status)
+
+    def init_plot(self, status):
+        islands = status['islands']
+        script_lines = [
+            'set terminal png',
+            "set output '{png}'".format(png=self.plot_path),
+        ]
+        islands_lines = []
+        islands_lines.append(
+            "plot '{csv}' using 1:2 title 'cross' with linespoints".format(csv=self.stats_filepath)
+        )
+        islands_lines.extend([
+            "'{}' using 1:{} title 'is-{}' with linespoints".format(
+                self.stats_filepath, i + 3, islands[i].short_id) for i in range(len(islands))
+        ])
+        script = '\n'.join(script_lines) + '\n' + ', \\\n'.join(islands_lines)
+        with open(self.gnuplot_script_path, 'w') as fp:
+            fp.write(script)
+
+    def update_stats(self, status, plot=False):
+        islands = status['islands']
+        offspring_ev = status['best_ev_offspring']['evaluation']
+        row = [islands[0].iteration, offspring_ev] + [isla.best_evaluation for isla in islands]
+        self.write_stats_row('a', row)
+
+        if plot:
+            self.update_plot()
+
+    def update_plot(self):
+        os.system("gnuplot '{}'".format(self.gnuplot_script_path))
+
+    def write_stats_row(self, mode, row):
+        row_string = '    '.join(['{:>13}'.format(cell) for cell in row])
+        with open(self.stats_filepath, mode) as fp:
+            fp.write(row_string + '\n')
