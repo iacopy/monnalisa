@@ -17,6 +17,9 @@ STATS_FILENAME = 'stats.csv'
 GNUPLOT_FILENAME = 'plot'
 PLOT_FILENAME = 'plot.png'
 
+ISLA_GENOMES_FILENAME = 'generations.txt'
+CROSSOVER_GENOMES_FILENAME = 'crossover_generations.txt'
+
 
 def _get_id(options):
     """
@@ -38,6 +41,10 @@ def get_cleared_options(options):
     cleared_options = deepcopy(options)
     del cleared_options.restart
     return cleared_options
+
+
+def write_genome(fp, iteration, genome):
+    fp.write('{i:>9}\t{g}\n'.format(i=iteration, g=genome))
 
 
 class HistoryIO:
@@ -96,24 +103,30 @@ class HistoryIO:
         txt = open(self.opt_txt_fp).read()
         assert self.cleared_options.__dict__ == eval(txt)
 
-    def save_island_best_image(self, island):
-        iteration = island.iteration
-        target = island.evaluator.target_filepath
-        ev = island.best_evaluation
-        now = datetime.datetime.now()
+    def save_island_best_individual(self, island, save_phenotype=False):
         dirpath = p_join(self.dirpath, island.id)
         os.makedirs(dirpath, exist_ok=True)
-        dst = p_join(
-            dirpath,
-            '{name}_t{t}_i{i}-mse{mse:.3f}.png'.format(
-                name=os.path.basename(target),
-                t=now.strftime('%Y%m%d%H%M%S'),
-                i=iteration,
-                mse=ev,
+
+        # Append island's best genome
+        iteration = island.iteration
+        genome = island.best['genome']
+        with open(p_join(dirpath, ISLA_GENOMES_FILENAME), 'a') as fp:
+            write_genome(fp, iteration, genome)
+
+        if save_phenotype:
+            target = island.evaluator.target_filepath
+            now = datetime.datetime.now()
+            dst = p_join(
+                dirpath,
+                '{name}_t{t}_i{i}-mse{mse:.3f}.png'.format(
+                    name=os.path.basename(target),
+                    t=now.strftime('%Y%m%d%H%M%S'),
+                    i=iteration,
+                    mse=island.best_evaluation,
+                )
             )
-        )
-        island.best['phenotype'].save(dst)
-        return dst
+            island.best['phenotype'].save(dst)
+            return dst
 
     def save(self, status):
         with open(self.filepath, 'wb') as fp:
@@ -156,6 +169,15 @@ class HistoryIO:
 
     def update_plot(self):
         os.system("gnuplot '{}'".format(self.gnuplot_script_path))
+
+    def update_genomes(self, status):
+        for isla in status['islands']:
+            self.save_island_best_individual(isla)
+
+        iteration = isla.iteration  # TODO: refactoring
+        crossover_genome = status['best_ev_offspring']['genome']
+        with open(self._path(CROSSOVER_GENOMES_FILENAME), 'a') as fp:
+            write_genome(fp, iteration, crossover_genome)
 
     def write_stats_row(self, mode, row):
         row_string = '    '.join(['{:>13}'.format(cell) for cell in row])

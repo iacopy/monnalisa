@@ -73,9 +73,8 @@ def main(options):
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation']))
 
             if delta < 0:
-                dst = history_io.save_island_best_image(isla)
                 isla_best_dst = os.path.join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
-                shutil.copy(dst, isla_best_dst)
+                isla.best['phenotype'].save(isla_best_dst)
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
 
@@ -96,6 +95,7 @@ def main(options):
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
         history_io.update_stats(status, plot=True)
+        history_io.update_genomes(status)
 
 
 def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
