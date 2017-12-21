@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 import sys
 from functools import partial
 from itertools import combinations
