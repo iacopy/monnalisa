@@ -33,7 +33,7 @@ def main(options):
     print('n_polygons: {}'.format(options.n_polygons))
     print('n_total_sides: {}'.format(n_total_sides))
 
-    im_eval = ImageEvaluator(options.target)
+    im_eval = ImageEvaluator(options.target, resize=options.resize)
     image_size = im_eval.target_size
     polygons_encoder = PolygonsEncoder(
         image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
@@ -176,6 +176,8 @@ def islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev):
 def get_options():
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='target image path')
+    parser.add_argument('--resize', type=int, default=128,
+        help='resize target image smaller while keeping aspect ratio [default: %(default)s]')
     parser.add_argument('-p', '--n-polygons', type=int, default=64,
         help='number of polygons to use [default: %(default)s]')
     parser.add_argument('-i', '--n-islands', type=int, default=2,
