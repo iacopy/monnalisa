@@ -14,6 +14,8 @@ p_join = os.path.join
 
 DATA_FILENAME = 'status.pkl'
 STATS_FILENAME = 'stats.csv'
+TIMES_FILENAME = 'times.csv'
+
 GNUPLOT_FILENAME = 'plot'
 PLOT_FILENAME = 'plot.png'
 
@@ -44,7 +46,7 @@ def get_cleared_options(options):
 
 
 def write_genome(fp, iteration, genome):
-    fp.write('{i:>9}\t{g}\n'.format(i=iteration, g=genome))
+    fp.write('{i:>9}    {g}\n'.format(i=iteration, g=genome))
 
 
 class HistoryIO:
@@ -58,7 +60,8 @@ class HistoryIO:
         self.dirpath = _get_history_dirpath(options, self.id)
         self.filepath = self._path(DATA_FILENAME)
         self.opt_txt_fp = self._path('options.txt')
-        self.stats_filepath = self._path('stats.csv')
+        self.stats_filepath = self._path(STATS_FILENAME)
+        self.times_filepath = self._path(TIMES_FILENAME)
         self.gnuplot_script_path = self._path(GNUPLOT_FILENAME)
         self.plot_path = self._path(PLOT_FILENAME)
         self.status = {}
@@ -135,7 +138,8 @@ class HistoryIO:
     def init_stats(self, status, plot=False):
         islands = status['islands']
         row = ['iteration', 'best crossover'] + ['is_' + isla.short_id for isla in islands]
-        self.write_stats_row('w', row)
+        self.write_stats_rows(self.stats_filepath, 'w', [row])
+        self.write_stats_rows(self.times_filepath, 'w', [['iteration', 'time.time()'], [0, time.time()]])
 
         if plot:
             self.init_plot(status)
@@ -162,7 +166,11 @@ class HistoryIO:
         islands = status['islands']
         offspring_ev = status['best_ev_offspring']['evaluation']
         row = [islands[0].iteration, offspring_ev] + [isla.best_evaluation for isla in islands]
-        self.write_stats_row('a', row)
+        self.write_stats_rows(self.stats_filepath, 'a', [row])
+
+        # salva i timestamps (pensato per misure di performance)
+        row = [islands[0].iteration, time.time()]
+        self.write_stats_rows(self.times_filepath, 'a', [row])
 
         if plot:
             self.update_plot()
@@ -179,7 +187,8 @@ class HistoryIO:
         with open(self._path(CROSSOVER_GENOMES_FILENAME), 'a') as fp:
             write_genome(fp, iteration, crossover_genome)
 
-    def write_stats_row(self, mode, row):
-        row_string = '    '.join(['{:>13}'.format(cell) for cell in row])
-        with open(self.stats_filepath, mode) as fp:
-            fp.write(row_string + '\n')
+    def write_stats_rows(self, dst, mode, rows):
+        with open(dst, mode) as fp:
+            for row in rows:
+                row_string = '    '.join(['{:>16}'.format(cell) for cell in row])
+                fp.write(row_string + '\n')
