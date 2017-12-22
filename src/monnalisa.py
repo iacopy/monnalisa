@@ -9,6 +9,7 @@ from random import shuffle
 import crossover
 from drawer import PolygonsEncoder
 from evaluator import ImageEvaluator, func_evaluate
+from genome import genetic_distances
 from history import HistoryIO
 from island import Island
 
@@ -68,14 +69,17 @@ def main(options):
         for i_isla, isla in enumerate(islands):
             delta = isla.run(options.crossover_freq)
 
-            print('i = {i}, it = {it:,}, v = {ev:,}'.format(
-                i=i_isla, it=isla.iteration, ev=isla.best['evaluation']))
+            print('i = {i}, it = {it:,}, v = {ev:,} ({d:,})'.format(
+                i=i_isla, it=isla.iteration, ev=isla.best['evaluation'], d=delta))
 
             if delta < 0:
                 isla_best_dst = os.path.join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
+        islands_genomes = [isla.best['genome'] for isla in islands]
+        gen_diffs = genetic_distances(*islands_genomes)
+        print('Variab gen (mean) = {:.3f}'.format(sum(gen_diffs) / len(islands)))
 
         new_best_ev_offspring = mating(
             islands, best_ev_offspring, evaluate,
@@ -90,6 +94,10 @@ def main(options):
 
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
+        co_genome = best_ev_offspring['genome']
+        gd = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
+        for diff in gd:
+            print('{:.3f}'.format(diff))
 
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
@@ -99,7 +107,7 @@ def main(options):
 
 def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
     f1_offsprings = get_offsprings(
-        [best_ev_offspring['genome']] + [isla.best['genome'] for isla in islands],
+        [isla.best['genome'] for isla in islands],
         n_max_offsprings=f1_size,
         n_crossovers=n_crossovers,
     )

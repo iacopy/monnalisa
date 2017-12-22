@@ -5,11 +5,27 @@ from random import random as rand
 from random import choice, choices, sample
 
 from numpy import array
+from numpy import sqrt
 
 
 def generate(bases, length):
     """Generate random 01 string."""
     return ''.join([choice(bases) for _ in range(length)])
+
+
+def genetic_distances(*genomes):
+    """
+    Restituisce una lista delle distanze genetiche tra tutti i genomi passati.
+
+    >>> genetic_diff('0010', '1010')
+    [1.0]
+    >>> r = genetic_diff('0000', '1111', '0000')
+    [2.0, 0.0, 2.0]
+    """
+    rv = []
+    for genome_a, genome_b in combinations(genomes, 2):
+        rv.append(sqrt(((array(list(map(int, genome_a))) - array(list(map(int, genome_b)))) ** 2).sum()))
+    return rv
 
 
 def flip_mutate(positions, genome):
