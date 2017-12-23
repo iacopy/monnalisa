@@ -99,9 +99,9 @@ def main(options):
         co_genome = best_ev_offspring['genome']
         polygons_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
 
-        gd = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
-        for diff in gd:
-            print('{:.3f}'.format(diff))
+        genetic_dist = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
+        for i_isla, distance in enumerate(genetic_dist):
+            print('distance best-crossover vs island {}: {:.3f}'.format(i_isla, distance))
 
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
