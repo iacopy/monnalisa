@@ -2,7 +2,7 @@ from math import ceil, log
 from random import choice
 
 from PIL import Image, ImageDraw
-
+import svgwrite
 
 BASES = '01'
 
@@ -90,6 +90,26 @@ class PolygonsEncoder:
             self.image_size, decoded['polygons'], decoded['background'],
             target_image_mode=target_image_mode
         )
+
+    def draw_as_svg(self, sequence, filename):
+        decoded = self.decode(sequence)
+        width, height = self.image_size
+        dwg = svgwrite.Drawing(filename=filename)
+        dwg.viewbox(width=width, height=height)
+        r, g, b, a = [v / 255 for v in decoded['background']]
+        background = dwg.polygon(
+            points=[(0, 0), (width, 0), (width, height), (0, height)],
+            fill='rgb({}%, {}%, {}%)'.format(r* 100, g* 100, b* 100),
+        )
+        dwg.add(background)
+        for points, color in decoded['polygons']:
+            r, g, b, a = [v / 255 for v in color]
+            polygon = dwg.polygon(
+                points=points,
+                fill='rgb({}%, {}%, {}%)'.format(r* 100, g* 100, b* 100),
+                opacity=a)
+            dwg.add(polygon)
+        dwg.save()
 
 
 def draw_polygons(image_size, polygons, background_color='white',

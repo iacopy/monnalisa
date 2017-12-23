@@ -2,3 +2,4 @@ Cython==0.27.2
 numpy==1.13.3
 Pillow==4.3.0
 Sphinx==1.6.5
+svgwrite==1.1.11

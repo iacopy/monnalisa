@@ -13,6 +13,8 @@ from genome import genetic_distances
 from history import HistoryIO
 from island import Island
 
+p_join = os.path.join
+
 BASES = '01'
 N_POLYGONS = 5
 STOP = 10 ** 6
@@ -73,7 +75,7 @@ def main(options):
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation'], d=delta))
 
             if delta < 0:
-                isla_best_dst = os.path.join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
+                isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
@@ -89,12 +91,14 @@ def main(options):
         )
         if new_best_ev_offspring:
             print('New best crossover! ev = {:,}'.format(new_best_ev_offspring['evaluation']))
-            new_best_ev_offspring['phenotype'].save(os.path.join(history_io.dirpath, 'best-crossover.png'))
+            new_best_ev_offspring['phenotype'].save(p_join(history_io.dirpath, 'best-crossover.png'))
             best_ev_offspring = new_best_ev_offspring
 
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
         co_genome = best_ev_offspring['genome']
+        polygons_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
+
         gd = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
         for diff in gd:
             print('{:.3f}'.format(diff))
