@@ -58,7 +58,7 @@ def rand_mut_pos_gen(genome_length, mutation_rate, n_extractions):
     Metodo lento di ottenimento di combinazioni di mutazioni
     basato su un lancio di un numero casuale per ogni base.
     """
-    for _ in range(n_n_extractions):
+    for _ in range(n_extractions):
         yield [i for i in range(genome_length) if rand() <= mutation_rate]
 
 
@@ -92,11 +92,12 @@ def fast_rand_mut_positions_generator(genome_length, mutation_rate, n_extraction
     di mutazioni per un genoma o cromosoma di lunghezza `genome_length`,
     in cui la probabilità di mutazione di ogni base è `mutation_rate`.
     """
-    probs = get_probs_k_mutations(genome_length, mutation_rate,
-        cutoff=1 / (n_extractions * 2))
+    probs = get_probs_k_mutations(
+        genome_length, mutation_rate,
+        cutoff=1 / (n_extractions * 2)
+    )
     for n_mutations in choices(range(len(probs)), probs, k=n_extractions):
         yield sample(range(genome_length), n_mutations)
-
 
 
 ##########################################################################
@@ -105,6 +106,7 @@ def fast_rand_mut_positions_generator(genome_length, mutation_rate, n_extraction
 
 # Le distribuzioni dovrebbero essere identiche, anche se uno dei due metodi
 # e' moolto piu' lento
+
 
 def count_n_rand_k_mutations(genome_length, mutation_rate, n_extractions=1):
     """Restituisce il contatore di quante volte è avvenuto un certo numero
