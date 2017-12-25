@@ -2,15 +2,17 @@ import time
 from collections import Counter
 from functools import partial
 from hashlib import md5
+from random import choice, random, randrange
 
 from evaluator import func_evaluate
 from genome import flip_mutate, get_rand_positions
+from transpose import transpose
 
 
 class Island:
     counter = 0
 
-    def __init__(self, polygons_encoder, evaluator, k_mut=1.0):
+    def __init__(self, polygons_encoder, evaluator, k_mut=1.0, p_transposition=0.5):
         self.polygons_encoder = polygons_encoder
         self.evaluator = evaluator
         self.evaluate = partial(func_evaluate, polygons_encoder, evaluator)
@@ -21,6 +23,9 @@ class Island:
         self.p_mutations = [self.k_mut / genome_size] * genome_size
         self.good_mutation_counter = Counter()
         self.bad_mutation_counter = Counter()
+        self.p_transposition = p_transposition
+        # Salva le mutazioni buone dell'ultimo ciclo di run
+        self.last_run_good_mutations = []
 
         # Stats
         self.iteration = 0
@@ -36,17 +41,23 @@ class Island:
     def best_evaluation(self):
         return self.best['evaluation']
 
-    def fitness_improved(self, mut_positions, *args, **kwargs):
+    def fitness_improved(self, mutation, *args, **kwargs):
+        """Function called in case of fitness improvement."""
         # update good mutations
-        self.good_mutation_counter.update(mut_positions)
+        self.last_run_good_mutations.append((self.iteration, mutation))
+        if mutation[0] == 'flip':
+            self.good_mutation_counter.update(mutation[1])
 
-    def fitness_fail(self, mut_positions, *args, **kwargs):
+    def fitness_fail(self, mutation, *args, **kwargs):
+        """Function called in case of fitness decreased."""
         pass
 
     def set_best(self, best):
         self.best = best
 
     def run(self, iterations=100000):
+        self.last_run_good_mutations = []
+
         evaluate = self.evaluate
         genome_size = self.polygons_encoder.genome_size
         mut_rate = self.k_mut / genome_size
@@ -68,29 +79,43 @@ class Island:
             if (self.iteration - start_iteration) == iterations:
                 break
 
-            # Generate random mutation positions
-            # frozenset is to cache bad mutations
-            mut_positions = frozenset(get_rand_positions(genome_size, mut_rate))
+            rand = random()
+            if rand <= self.p_transposition:
+                inverted = choice([True, False])
+                if rand <= self.p_transposition / 2:
+                    start, end, dst = sorted([randrange(genome_size), randrange(genome_size), randrange(genome_size)])
+                else:
+                    dst, start, end = sorted([randrange(genome_size), randrange(genome_size), randrange(genome_size)])
+                transposing = list(father_genome)
+                transpose(transposing, start, end, dst, replicative=False, inverted=inverted)
+                child_genome = ''.join(transposing)
+                mutation = ('T', (start, end, dst, False, inverted))
+            else:
+                # Generate random mutation positions
+                # frozenset is to cache bad mutations
+                mut_positions = frozenset(get_rand_positions(genome_size, mut_rate))
+                mutation = ('F', tuple(mut_positions))
 
-            # Check cached bad mutations
-            t_sk_ev_0 = time.time()
-            if len(mut_positions) < 3:
-                if mut_positions in bad_mutations:
-                    n_skipped_evaluations += 1
+                # Check cached bad mutations
+                t_sk_ev_0 = time.time()
+                if len(mut_positions) < 3:
+                    if mut_positions in bad_mutations:
+                        n_skipped_evaluations += 1
+                        t_sk_tot += time.time() - t_sk_ev_0
+                        continue
                     t_sk_tot += time.time() - t_sk_ev_0
-                    continue
-                t_sk_tot += time.time() - t_sk_ev_0
+
+                child_genome = flip_mutate(mut_positions, father_genome)
 
             # Evaluation (mutation, phenotype and evaluation)
             t_ev_0 = time.time()
-            child_genome = flip_mutate(mut_positions, father_genome)
             child_rv = evaluate(child_genome)
             child_evaluation = child_rv['evaluation']
             n_evaluations += 1
             t_ev_tot += time.time() - t_ev_0
 
             if child_evaluation < father_evaluation:
-                self.fitness_improved(mut_positions, father_evaluation, child_evaluation)
+                self.fitness_improved(mutation, father_evaluation, child_evaluation)
 
                 self.set_best(child_rv)
                 father_evaluation = child_evaluation
@@ -100,11 +125,12 @@ class Island:
                 bad_mutations = set()
             else:
                 failed_iterations += 1
-                if len(mut_positions) < 3:
-                    bad_mutations.add(mut_positions)
-                self.bad_mutation_counter.update(mut_positions)
+                if mutation[0] == 'F':
+                    if len(mut_positions) < 3:
+                        bad_mutations.add(mut_positions)
+                    self.bad_mutation_counter.update(mut_positions)
 
-                self.fitness_fail(mut_positions, father_evaluation, child_evaluation)
+                self.fitness_fail(mutation, father_evaluation, child_evaluation)
 
         t_ev_mean = t_ev_tot / n_evaluations
         t_ev_avoided = t_ev_mean * n_skipped_evaluations

@@ -106,7 +106,8 @@ class HistoryIO:
         txt = open(self.opt_txt_fp).read()
         assert self.cleared_options.__dict__ == eval(txt)
 
-    def save_island_best_individual(self, island, save_phenotype=False):
+    def save_island_stuff(
+            self, island, save_phenotype=False, save_good_mutations=False):
         dirpath = p_join(self.dirpath, island.id)
         os.makedirs(dirpath, exist_ok=True)
 
@@ -130,6 +131,13 @@ class HistoryIO:
             )
             island.best['phenotype'].save(dst)
             return dst
+
+        if save_good_mutations:
+            with open(p_join(dirpath, 'good_mutations.csv'), 'a') as fp:
+                for iteration, mutation in island.last_run_good_mutations:
+                    fp.write('{}; {}; {}\n'.format(
+                        iteration, mutation[0], ','.join(map(str, mutation[1:])))
+                    )
 
     def save(self, status):
         with open(self.filepath, 'wb') as fp:
@@ -178,9 +186,10 @@ class HistoryIO:
     def update_plot(self):
         os.system("gnuplot '{}'".format(self.gnuplot_script_path))
 
-    def update_genomes(self, status):
+    def update_genomes_stuff(self, status, save_good_mutations=False):
+        """Save genomes and mutations"""
         for isla in status['islands']:
-            self.save_island_best_individual(isla)
+            self.save_island_stuff(isla, save_good_mutations=save_good_mutations)
 
         iteration = isla.iteration  # TODO: refactoring
         crossover_genome = status['best_ev_offspring']['genome']

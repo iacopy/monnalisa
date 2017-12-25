@@ -106,7 +106,7 @@ def main(options):
         status = {'islands': islands, 'best_ev_offspring': best_ev_offspring}
         history_io.save(status)
         history_io.update_stats(status, plot=True)
-        history_io.update_genomes(status)
+        history_io.update_genomes_stuff(status, save_good_mutations=True)
 
 
 def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
