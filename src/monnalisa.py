@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+import time
 from functools import partial
 from itertools import combinations
 from operator import itemgetter
@@ -28,12 +29,13 @@ def main(options):
     Simplest GA main function.
     """
     n_shapes = options.n_shapes
-    print('drawing {} with {} polygons'.format(options.target, n_shapes))
     print('target: {}'.format(repr(options.target)))
+    print('drawing {} with {} polygons'.format(options.target, n_shapes))
 
     im_eval = ImageEvaluator(options.target, resize=options.resize)
     image_size = im_eval.target_size
     shapes_encoder = ShapesEncoder(image_size, n_shapes, shape=options.shape)
+    print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)
 
     islands = tuple([Island(shapes_encoder, im_eval) for _ in range(options.n_islands)])
@@ -60,9 +62,12 @@ def main(options):
         history_io.init()
         history_io.init_stats(status, plot=True)
 
-    print('islands =', islands)
+    print('{} islands: {}'.format(len(islands), islands))
 
+    t_0 = time.time()
+    total_session_iterations = 0
     while True:
+        i_t0 = time.time()
         for i_isla, isla in enumerate(islands):
             delta = isla.run(options.crossover_freq)
 
@@ -72,6 +77,10 @@ def main(options):
             if delta < 0:
                 isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
+
+        i_elapsed = time.time() - i_t0
+        speed = (options.crossover_freq * len(islands)) / i_elapsed
+        print('Islands speed: {:.3f} it/s'.format(speed))
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
         islands_genomes = [isla.best['genome'] for isla in islands]
@@ -102,6 +111,11 @@ def main(options):
         history_io.save(status)
         history_io.update_stats(status, plot=True)
         history_io.update_genomes_stuff(status, save_good_mutations=True)
+
+        elapsed = time.time() - t_0
+        total_session_iterations += (options.crossover_freq * len(islands))
+        speed = total_session_iterations / elapsed
+        print('Session mean speed: {:.2f} it/s'.format(speed))
 
 
 def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
