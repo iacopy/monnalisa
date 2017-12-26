@@ -12,14 +12,14 @@ from transpose import transpose
 class Island:
     counter = 0
 
-    def __init__(self, polygons_encoder, evaluator, k_mut=1.0, p_transposition=0.5):
-        self.polygons_encoder = polygons_encoder
+    def __init__(self, shapes_encoder, evaluator, k_mut=1.0, p_transposition=0.5):
+        self.shapes_encoder = shapes_encoder
         self.evaluator = evaluator
-        self.evaluate = partial(func_evaluate, polygons_encoder, evaluator)
+        self.evaluate = partial(func_evaluate, shapes_encoder, evaluator)
 
         # Mutations
         self.k_mut = k_mut
-        genome_size = self.polygons_encoder.genome_size
+        genome_size = self.shapes_encoder.genome_size
         self.p_mutations = [self.k_mut / genome_size] * genome_size
         self.good_mutation_counter = Counter()
         self.bad_mutation_counter = Counter()
@@ -31,7 +31,7 @@ class Island:
         self.iteration = 0
         self.t_saved = 0
 
-        genome = self.polygons_encoder.generate()
+        genome = self.shapes_encoder.generate()
         self.best = self.evaluate(genome)
         self.adam = genome
         self.id = md5(genome.encode()).hexdigest()
@@ -59,7 +59,7 @@ class Island:
         self.last_run_good_mutations = []
 
         evaluate = self.evaluate
-        genome_size = self.polygons_encoder.genome_size
+        genome_size = self.shapes_encoder.genome_size
         mut_rate = self.k_mut / genome_size
         start_iteration = self.iteration
 

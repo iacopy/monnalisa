@@ -7,7 +7,7 @@ from operator import itemgetter
 from random import shuffle
 
 import crossover
-from drawer import PolygonsEncoder
+from drawer import ShapesEncoder
 from evaluator import ImageEvaluator, func_evaluate
 from genome import genetic_distances
 from history import HistoryIO
@@ -16,7 +16,7 @@ from island import Island
 p_join = os.path.join
 
 BASES = '01'
-N_POLYGONS = 5
+N_SHAPES = 5
 STOP = 10 ** 6
 SAVE_INTERVAL = STOP / 10
 MIN_SAVE_DT = 60
@@ -27,21 +27,16 @@ def main(options):
     """
     Simplest GA main function.
     """
-    n_polygons = options.n_polygons
-    print('drawing {} with {} polygons'.format(options.target, n_polygons))
-
-    n_total_sides = n_polygons * options.max_sides
+    n_shapes = options.n_shapes
+    print('drawing {} with {} polygons'.format(options.target, n_shapes))
     print('target: {}'.format(repr(options.target)))
-    print('n_polygons: {}'.format(options.n_polygons))
-    print('n_total_sides: {}'.format(n_total_sides))
 
     im_eval = ImageEvaluator(options.target, resize=options.resize)
     image_size = im_eval.target_size
-    polygons_encoder = PolygonsEncoder(
-        image_size, n_total_sides, min_sides=options.min_sides, max_sides=options.max_sides)
-    evaluate = partial(func_evaluate, polygons_encoder, im_eval)
+    shapes_encoder = ShapesEncoder(image_size, n_shapes, shape=options.shape)
+    evaluate = partial(func_evaluate, shapes_encoder, im_eval)
 
-    islands = tuple([Island(polygons_encoder, im_eval) for _ in range(options.n_islands)])
+    islands = tuple([Island(shapes_encoder, im_eval) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
     status = {
         'best_ev_offspring': best_ev_offspring,
@@ -97,7 +92,7 @@ def main(options):
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
         co_genome = best_ev_offspring['genome']
-        polygons_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
+        shapes_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
 
         genetic_dist = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
         for i_isla, distance in enumerate(genetic_dist):
@@ -189,20 +184,20 @@ def get_options():
     parser.add_argument('target', help='target image path')
     parser.add_argument('--resize', type=int, default=128,
         help='resize target image smaller while keeping aspect ratio [default: %(default)s]')
-    parser.add_argument('-p', '--n-polygons', type=int, default=64,
-        help='number of polygons to use [default: %(default)s]')
+    parser.add_argument('-n', '--n-shapes', type=int, default=64,
+        help='number of shapes to use [default: %(default)s]')
+    parser.add_argument('-s', '--shape', default='t',
+        help='shapes used to draw: t=triangle, e=ellipse, other=4-sides-polygon [default: %(default)s]')
     parser.add_argument('-i', '--n-islands', type=int, default=2,
         help='number of islands [default: %(default)s]')
     parser.add_argument('-c', '--crossover-freq', type=int, default=1000,
         help='number of separate islands iterations between crossover [default: %(default)s]')
-    parser.add_argument('-n', '--n-crossovers', type=int, default=1,
+    parser.add_argument('-o', '--n-crossovers', type=int, default=1,
         help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
-    parser.add_argument('-s', '--saving-freq', type=int, default=1000,
+    parser.add_argument('-f', '--saving-freq', type=int, default=1000,
         help='image saving frequency in iterations [default: %(default)s]')
     parser.add_argument('--f1', type=int, default=32, help='f1 generation size')
     parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
-    parser.add_argument('--min-sides', type=int, default=3, help='[default: %(default)s]')
-    parser.add_argument('--max-sides', type=int, default=6, help='[default: %(default)s]')
     parser.add_argument('--iterations', type=int, default=STOP,
         help='number of iterations [default: %(default)s]')
     parser.add_argument('-m', '--image_mode', default='RGB', help='[default: %(default)s]')

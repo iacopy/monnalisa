@@ -34,8 +34,8 @@ class ImageEvaluator:
         return ((self.target_arr - self.candidate_arr) ** 2).sum()
 
 
-def func_evaluate(polygons_encoder, evaluator, genome):
+def func_evaluate(shapes_encoder, evaluator, genome):
     """Utility function."""
-    phenotype = polygons_encoder.draw(genome)
+    phenotype = shapes_encoder.draw(genome)
     evaluation = evaluator.evaluate(phenotype)
     return dict(genome=genome, phenotype=phenotype, evaluation=evaluation)
