@@ -1,5 +1,6 @@
 from math import ceil, log
 from random import choice
+from enum import Enum
 
 from PIL import Image, ImageDraw
 import svgwrite
@@ -7,26 +8,35 @@ import svgwrite
 BASES = '01'
 
 
+class Shape(Enum):
+    TRIANGLE = 't'
+    ELLIPSE = 'e'
+    QUAD = 'q'
+
+
+POINTS_PER_SHAPE = {Shape.TRIANGLE: 3, Shape.ELLIPSE: 2, Shape.QUAD: 4}
+
+
 class ShapesEncoder:
-    def __init__(self, image_size, n_shapes, shape):
-        self.shape = shape
-        if shape == 'e':
-            self.points_per_shape = 2
-        elif shape == 't':
-            self.points_per_shape = 3
-        else:
-            self.points_per_shape = 4
-        n_total_points = n_shapes * self.points_per_shape
-        width, height = image_size
-        self.width_bits = ceil(log(width, 2))
-        self.height_bits = ceil(log(height, 2))
+    def __init__(self, image_size, color_channels=4, shape=Shape.TRIANGLE, n_shapes=32):
         self.image_size = image_size
-        self.color_bits = ceil(log(256, 2))
-        self.colors_channels = 4
-        self.visible_bits = 1
-        self.genome_size = self.color_bits * self.colors_channels + \
-            n_total_points * (self.width_bits + self.height_bits) + \
-            n_shapes * (self.visible_bits + self.color_bits * self.colors_channels)
+        self.color_channels = color_channels
+        self.shape = Shape(shape)
+        self.n_shapes = n_shapes
+        points_per_shape = POINTS_PER_SHAPE[self.shape]
+        n_total_points = n_shapes * points_per_shape
+        width, height = image_size
+        size_bits = ceil(log(width, 2)), ceil(log(height, 2))
+        color_bits = ceil(log(256, 2)) * color_channels
+        visible_bits = 1
+        self.genome_size = color_bits + n_total_points * sum(size_bits) + \
+            n_shapes * (visible_bits + color_bits)
+        self.bits = dict(
+            channel=color_bits // color_channels,
+            x=size_bits[0], y=size_bits[1],
+            visible=visible_bits,
+        )
+        print('self.bits =', self.bits)
         self.index = 0
 
     def _read(self, sequence, n_bits, info=''):
@@ -40,9 +50,11 @@ class ShapesEncoder:
 
     def _read_points(self, sequence, n_points):
         points = [(0, 0)] * n_points
+        x_bits = self.bits['x']
+        y_bits = self.bits['y']
         for i in range(n_points):
-            x = self._read(sequence, self.width_bits)
-            y = self._read(sequence, self.height_bits)
+            x = self._read(sequence, x_bits)
+            y = self._read(sequence, y_bits)
             points[i] = x, y
         return points
 
@@ -50,8 +62,8 @@ class ShapesEncoder:
         """Read and decode an RGB or RGBA color (based on self.color_channels).
         """
         return tuple(
-            [self._read(sequence, self.color_bits)
-                for _ in range(self.colors_channels)]
+            [self._read(sequence, self.bits['channel'])
+                for _ in range(self.color_channels)]
         )
 
     def decode(self, sequence):
@@ -60,12 +72,14 @@ class ShapesEncoder:
         annotations = {}
         annotations['visibility'] = []  # list of visibility bases
         bg_color = self._read_color(sequence)
+        visible_bits = self.bits['visible']
+        points_per_shape = POINTS_PER_SHAPE[self.shape]
         while self.index < len(sequence):
             try:
                 annotations['visibility'].append(self.index)
-                visible = self._read(sequence, self.visible_bits)
+                visible = self._read(sequence, visible_bits)
                 # read shape points
-                points = self._read_points(sequence, self.points_per_shape)
+                points = self._read_points(sequence, points_per_shape)
                 color = self._read_color(sequence)
             except ValueError as err:
                 break
@@ -110,7 +124,7 @@ class ShapesEncoder:
         dwg.add(background)
         for points, color in decoded['shapes']:
             r, g, b, a = [v / 255 for v in color]
-            if self.shape == 'e':
+            if self.shape is Shape.ELLIPSE:
                 # ellipse not implemented
                 continue
             else:
@@ -131,7 +145,7 @@ def draw_shapes(
     im = Image.new(target_image_mode, image_size, color=background_color)
     drawer = ImageDraw.Draw(im, 'RGBA')
     for points, color in shapes:
-        if shape == 'e':
+        if shape is Shape.ELLIPSE:
             drawer.ellipse(points, color)
         else:
             drawer.polygon(points, color)
@@ -140,7 +154,7 @@ def draw_shapes(
 
 def demo():
     image_size = 100, 100
-    encoder = ShapesEncoder(image_size, 4, 't')
+    encoder = ShapesEncoder(image_size, 4, Shape.TRIANGLE)
     dna = encoder.generate()
     print(dna, len(dna))
     im = encoder.draw(dna)

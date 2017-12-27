@@ -34,7 +34,12 @@ def main(options):
 
     im_eval = ImageEvaluator(options.target, resize=options.resize)
     image_size = im_eval.target_size
-    shapes_encoder = ShapesEncoder(image_size, n_shapes, shape=options.shape)
+    shapes_encoder = ShapesEncoder(
+        image_size=image_size,
+        color_channels=4,
+        shape=options.shape,
+        n_shapes=n_shapes
+    )
     print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)
 
