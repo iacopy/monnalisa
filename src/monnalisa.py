@@ -28,17 +28,21 @@ def main(options):
     """
     Simplest GA main function.
     """
+    import pprint
+    pprint.pprint(options.__dict__)
     n_shapes = options.n_shapes
     print('target: {}'.format(repr(options.target)))
     print('drawing {} with {} polygons'.format(options.target, n_shapes))
 
-    im_eval = ImageEvaluator(options.target, resize=options.resize)
+    im_eval = ImageEvaluator(options.target, dst_image_mode=options.target_image_mode, resize=options.resize)
     image_size = im_eval.target_size
+
     shapes_encoder = ShapesEncoder(
         image_size=image_size,
-        color_channels=4,
+        image_mode=options.target_image_mode,
+        draw_image_mode=options.draw_image_mode,
         shape=options.shape,
-        n_shapes=n_shapes
+        n_shapes=n_shapes,
     )
     print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)
@@ -219,7 +223,8 @@ def get_options():
     parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
     parser.add_argument('--iterations', type=int, default=STOP,
         help='number of iterations [default: %(default)s]')
-    parser.add_argument('-m', '--image_mode', default='RGB', help='[default: %(default)s]')
+    parser.add_argument('-d', '--draw-image_mode', default='RGBA', help='[default: %(default)s]')
+    parser.add_argument('-m', '--target-image_mode', default='RGB', help='[default: %(default)s]')
     parser.add_argument('--p-position', action='store_true',
         help='enable single position probability mutations (experimental)')
     parser.add_argument('--restart', default=False, action='store_true',

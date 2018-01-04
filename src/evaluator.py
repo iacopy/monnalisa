@@ -13,14 +13,18 @@ def resized(image, max_size):
 
 
 class ImageEvaluator:
-    def __init__(self, target_image, target_image_mode='RGB', resize=128):
-        im = Image.open(target_image).convert(target_image_mode)
+    def __init__(self, target_image, dst_image_mode='RGB', resize=128):
+        print('target_image =', target_image)
+        print('Converting to', dst_image_mode)
+        # Do not save alpha channel since JPEG does not support it
+        im = Image.open(target_image).convert(dst_image_mode)
         im = resized(im, resize)
-        im.save(target_image)
+        im.save(target_image.replace('.jpg', '.png'))
+
         # TODO: make a copy of the original
         self.target_filepath = target_image
         self.target_image = im
-        self.target_image_mode = target_image_mode
+        self.dst_image_mode = dst_image_mode
         self.target_size = im.size
         self.target_arr = np.asarray(im.getdata())
         self.n_data = len(self.target_arr)

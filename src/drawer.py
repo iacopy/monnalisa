@@ -15,40 +15,69 @@ class Shape(Enum):
 
 
 POINTS_PER_SHAPE = {Shape.TRIANGLE: 3, Shape.ELLIPSE: 2, Shape.QUAD: 4}
+CHANNELS_TO_IMAGE_MODE = {1: 'L', 2: 'LA', 3: 'RGB', 4: 'RGBA'}
+IMAGE_MODES = list(CHANNELS_TO_IMAGE_MODE.values())
 
 
 class ShapesEncoder:
-    def __init__(self, image_size, color_channels=4, shape=Shape.TRIANGLE, n_shapes=32):
+    """
+    Handle the generation of image based on binary strings.
+    """
+    def __init__(
+            self,
+            image_size=(100, 100),
+            image_mode='RGB',
+            draw_image_mode='RGBA',
+            shape=Shape.TRIANGLE,
+            n_shapes=32,
+            color_bit_depth=8,
+        ):
+        print('ShapesEncoder init with image_mode={}'.format(image_mode))
         self.image_size = image_size
-        self.color_channels = color_channels
+        assert image_mode in IMAGE_MODES, 'Invalid image mode: {}'.format(image_mode)
+        assert draw_image_mode in IMAGE_MODES, 'Invalid draw_image_mode: {}'.format(draw_image_mode)
+        self.image_mode = image_mode
+        self.draw_image_mode = draw_image_mode
+        self.color_channels = len(draw_image_mode)
+        self.bg_warned = False
+        # TODO: refactor shape e n_shaoes in a single attribute
         self.shape = Shape(shape)
         self.n_shapes = n_shapes
         points_per_shape = POINTS_PER_SHAPE[self.shape]
-        n_total_points = n_shapes * points_per_shape
         width, height = image_size
         size_bits = ceil(log(width, 2)), ceil(log(height, 2))
-        color_bits = ceil(log(256, 2)) * color_channels
+        color_bits = color_bit_depth * self.color_channels
         visible_bits = 1
-        self.genome_size = color_bits + n_total_points * sum(size_bits) + \
-            n_shapes * (visible_bits + color_bits)
+        self.genome_size = color_bits + n_shapes * (
+            visible_bits + color_bits + points_per_shape * sum(size_bits)
+        )
+        sb = sum(size_bits)
+        print('genome_size = {color_bits} + {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * {sb})'.format(**locals()))
+
         self.bits = dict(
-            channel=color_bits // color_channels,
+            channel=color_bits // self.color_channels,
             x=size_bits[0], y=size_bits[1],
             visible=visible_bits,
+            color_depth=color_bit_depth,
         )
         print('self.bits =', self.bits)
         self.index = 0
 
-    def _read(self, sequence, n_bits, info=''):
+    def _read(self, sequence, n_bits):
         """
-        :param info: annotate the sequence when decoding.
+        Read and decode a `sequence` chunk of `n_bits` in decimal.
+
+        :rtype: int
         """
         chunk = sequence[self.index: self.index + n_bits]
         dec = int(chunk, 2)
         self.index += n_bits
-        return dec
+        return dec  # TODO: optimize / remove intermediate variable
 
     def _read_points(self, sequence, n_points):
+        """
+        Read and decode `n_points` of 2D coordinates from `sequence`.
+        """
         points = [(0, 0)] * n_points
         x_bits = self.bits['x']
         y_bits = self.bits['y']
@@ -59,7 +88,8 @@ class ShapesEncoder:
         return points
 
     def _read_color(self, sequence):
-        """Read and decode an RGB or RGBA color (based on self.color_channels).
+        """
+        Read and decode a L, LA, RGB or RGBA color (based on self.color_channels).
         """
         return tuple(
             [self._read(sequence, self.bits['channel'])
@@ -67,6 +97,9 @@ class ShapesEncoder:
         )
 
     def decode(self, sequence):
+        """
+        Translate a binary `sequence` into an high level drawing information.
+        """
         self.index = 0
         shapes = []
         annotations = {}
@@ -91,6 +124,8 @@ class ShapesEncoder:
 
     def generate(self, set_visibility=None):
         """
+        Generate a random binary string.
+
         :param set_visibility: set all shapes visible or not.
         """
         pre_seq = [choice(BASES) for _ in range(self.genome_size)]
@@ -100,12 +135,26 @@ class ShapesEncoder:
                 pre_seq[shape_visibility_pos] = str(int(set_visibility))
         return ''.join(pre_seq)
 
-    def draw(self, sequence, target_image_mode='RGB'):
+    def draw(self, sequence):
+        """
+        Convert `sequence` into a Pillow image (in memory).
+        """
         decoded = self.decode(sequence)
+
+        # FIXME: no worning but use less channels for the bg if needed
+        if not self.bg_warned:
+            bg_color = decoded['background'][: len(self.image_mode)]
+            if bg_color != decoded['background']:
+                print('WARNING: {} unused channel(s) for the background!'.format(
+                    len(decoded['background']) - len(bg_color)
+                ))
+                self.bg_warned = True
+
         return draw_shapes(
             self.image_size, decoded['shapes'], self.shape,
             decoded['background'],
-            target_image_mode=target_image_mode
+            dst_image_mode=self.image_mode,
+            draw_image_mode=self.draw_image_mode,
         )
 
     def draw_as_svg(self, sequence, filename):
@@ -116,14 +165,16 @@ class ShapesEncoder:
         width, height = self.image_size
         dwg = svgwrite.Drawing(filename=filename)
         dwg.viewbox(width=width, height=height)
-        r, g, b, a = [v / 255 for v in decoded['background']]
+        color = [v / 255 for v in decoded['background']]
+        r, g, b, a = tuple_to_rgba(color)
         background = dwg.polygon(
             points=[(0, 0), (width, 0), (width, height), (0, height)],
             fill='rgb({}%, {}%, {}%)'.format(r * 100, g * 100, b * 100),
         )
         dwg.add(background)
         for points, color in decoded['shapes']:
-            r, g, b, a = [v / 255 for v in color]
+            color = [v / 255 for v in color]
+            r, g, b, a = tuple_to_rgba(color)
             if self.shape is Shape.ELLIPSE:
                 # ellipse not implemented
                 continue
@@ -136,14 +187,43 @@ class ShapesEncoder:
         dwg.save()
 
 
+def tuple_to_rgba(color):
+    color_length = len(color)
+    if color_length == 4:
+        r, g, b, a = color
+    elif color_length == 3:
+        r, g, b = color
+        a = 1
+    elif color_length == 2:
+        r = g = b = color[0]
+        a = color[1]
+    elif color_length == 1:
+        r = g = b = color[0]
+        a = 1
+    else:
+        raise Exception('Unexpected color length: color = {}'.format(color))
+    return r, g, b, a
+
+
 def draw_shapes(
-        image_size, shapes, shape, background_color='white', target_image_mode='RGB'):
+        image_size, shapes, shape,
+        background_color='white',
+        dst_image_mode='RGB',
+        draw_image_mode='RGBA'):
     """
     Create an RGB (by default) image and draw `shapes` on it
     in RGBA mode (with alpha).
     """
-    im = Image.new(target_image_mode, image_size, color=background_color)
-    drawer = ImageDraw.Draw(im, 'RGBA')
+    # TODO: optimize by passing already created image
+    # print('image_size =', image_size)
+    # print('shapes =', shapes)
+    # print('dst_image_mode =', dst_image_mode)
+    # print('background_color =', background_color)
+    # print('Creating {} image'.format(dst_image_mode))
+    im = Image.new(dst_image_mode, image_size, color=background_color)
+    # print('Drawing in {} mode'.format(draw_image_mode))
+    drawer = ImageDraw.Draw(im, draw_image_mode)
+
     for points, color in shapes:
         if shape is Shape.ELLIPSE:
             drawer.ellipse(points, color)
