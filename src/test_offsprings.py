@@ -1,5 +1,5 @@
 import pytest
-from monnalisa import islands_crossover_offsprings_tournament
+from mating import islands_crossover_offsprings_tournament
 
 
 @pytest.mark.parametrize('islands,ev_offsprings,expected', [

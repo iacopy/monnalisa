@@ -1,27 +1,19 @@
-import argparse
 import os
-import sys
 import time
 from functools import partial
-from itertools import combinations
-from operator import itemgetter
-from random import shuffle
 
-import crossover
+import cli
 from drawer import ShapesEncoder
 from evaluator import ImageEvaluator, func_evaluate
 from genome import genetic_distances
 from history import HistoryIO
 from island import Island
+from mating import mate
+
 
 p_join = os.path.join
 
 BASES = '01'
-N_SHAPES = 5
-STOP = 10 ** 6
-SAVE_INTERVAL = STOP / 10
-MIN_SAVE_DT = 60
-VISIBLE_DELTA_EV = 10 ** 6
 
 
 def main(options):
@@ -96,7 +88,7 @@ def main(options):
         gen_diffs = genetic_distances(*islands_genomes)
         print('Variab gen (mean) = {:.3f}'.format(sum(gen_diffs) / len(islands)))
 
-        new_best_ev_offspring = mating(
+        new_best_ev_offspring = mate(
             islands, best_ev_offspring, evaluate,
             f1_size=options.f1,
             f2_size=options.f2,
@@ -127,121 +119,6 @@ def main(options):
         print('Session mean speed: {:.2f} it/s'.format(speed))
 
 
-def mating(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
-    f1_offsprings = get_offsprings(
-        [isla.best['genome'] for isla in islands],
-        n_max_offsprings=f1_size,
-        n_crossovers=n_crossovers,
-    )
-    f2_offsprings = get_offsprings(
-        f1_offsprings, n_max_offsprings=f2_size, n_crossovers=n_crossovers
-    )
-    print('f1: {:,}'.format(len(f1_offsprings)))
-    print('f2: {:,}'.format(len(f2_offsprings)))
-    offsprings = f1_offsprings + f2_offsprings
-
-    ev_offsprings = [evaluate(genome) for genome in offsprings]
-    ev_offsprings.sort(key=itemgetter('evaluation'))
-    if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
-        return ev_offsprings[0]
-
-
-def get_offsprings(parents, n_max_offsprings=64, n_crossovers=1):
-    """Recombinate parents individuals with crossover.
-
-    Also keep parents information.
-
-    Arguments:
-        parents {list} -- parents sources for crossovers
-    """
-    offsprings = []
-    # TODO: randomize parents or parents indices
-    for (p_a_index, p_b_index) in combinations(range(len(parents)), 2):
-        p_a = parents[p_a_index]
-        p_b = parents[p_b_index]
-        for i in range(n_crossovers):
-            crossover_points = crossover.normal_rand_crossover_operator(p_a, p_b)
-            if crossover_points:
-                # otherwise no recombination, no new sequences
-                for offspring in [
-                    ''.join(c) for c in crossover.crossover(p_a, p_b, crossover_points)
-                    ]:
-                    offsprings.append(offspring)
-        # avoid explosion of combinations
-        if len(offsprings) >= n_max_offsprings:
-            break
-    shuffle(offsprings)
-    return offsprings[: n_max_offsprings]
-
-
-# XXX: unused function
-def islands_crossover_offsprings_tournament(islands_best_ev, offsprings_ev):
-    """
-    Assign offsprings to islands if good enough.
-
-    Deterministic, from best to worst.
-    """
-    # Store indices before sorting
-    islands_indices = {x: i for i, x in enumerate(islands_best_ev)}
-    offsprings_indices = {x: i for i, x in enumerate(offsprings_ev)}
-
-    islands_best_ev.sort()
-    offsprings_ev.sort()
-
-    ret = {}
-    i = o = 0
-    while o < len(offsprings_ev) and i < len(islands_best_ev):
-        current_o = offsprings_ev[o]
-        current_i = islands_best_ev[i]
-        if current_o < current_i:
-            ret[offsprings_indices[current_o]] = islands_indices[current_i]
-            o += 1
-            i += 1
-        else:
-            i += 1
-    return ret
-
-
-def get_options():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('target', help='target image path')
-    parser.add_argument('--resize', type=int, default=128,
-        help='resize target image smaller while keeping aspect ratio [default: %(default)s]')
-    parser.add_argument('-n', '--n-shapes', type=int, default=64,
-        help='number of shapes to use [default: %(default)s]')
-    parser.add_argument('-s', '--shape', default='t',
-        help='shapes used to draw: t=triangle, e=ellipse, other=4-sides-polygon [default: %(default)s]')
-    parser.add_argument('-i', '--n-islands', type=int, default=2,
-        help='number of islands [default: %(default)s]')
-    parser.add_argument('-c', '--crossover-freq', type=int, default=1000,
-        help='number of separate islands iterations between crossover [default: %(default)s]')
-    parser.add_argument('-o', '--n-crossovers', type=int, default=1,
-        help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
-    parser.add_argument('-f', '--saving-freq', type=int, default=1000,
-        help='image saving frequency in iterations [default: %(default)s]')
-    parser.add_argument('--f1', type=int, default=32, help='f1 generation size')
-    parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
-    parser.add_argument('--iterations', type=int, default=STOP,
-        help='number of iterations [default: %(default)s]')
-    parser.add_argument('-d', '--draw-image_mode', default='RGBA', help='[default: %(default)s]')
-    parser.add_argument('-m', '--target-image_mode', default='RGB', help='[default: %(default)s]')
-    parser.add_argument('--p-position', action='store_true',
-        help='enable single position probability mutations (experimental)')
-    parser.add_argument('--restart', default=False, action='store_true',
-        help='do not resume existing history, but *erase* it and restart [default=%(default)s]')
-
-    options = parser.parse_args()
-    if "RANDOMSEED" in os.environ:
-        seed_text = os.environ["RANDOMSEED"]
-        try:
-            options.seed = int(seed_text)
-        except ValueError:
-            sys.exit("RANDOMSEED={0!r} invalid".format(seed_text))
-    else:
-        options.seed = None
-    return options
-
-
 if __name__ == '__main__':
-    options = get_options()
-    main(options)
+    opts = cli.get_options()
+    main(opts)
