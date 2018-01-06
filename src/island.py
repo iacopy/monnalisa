@@ -12,10 +12,11 @@ from transpose import transpose
 class Island:
     counter = 0
 
-    def __init__(self, shapes_encoder, evaluator, k_mut=1.0, p_transposition=0.5):
+    def __init__(self, shapes_encoder, evaluator, run_iterations=1000, k_mut=1.0, p_transposition=0.5):
         self.shapes_encoder = shapes_encoder
         self.evaluator = evaluator
         self.evaluate = partial(func_evaluate, shapes_encoder, evaluator)
+        self.run_iterations = run_iterations
 
         # Mutations
         self.k_mut = k_mut
@@ -55,7 +56,7 @@ class Island:
     def set_best(self, best):
         self.best = best
 
-    def run(self, iterations=100000):
+    def run(self):
         self.last_run_good_mutations = []
 
         evaluate = self.evaluate
@@ -73,10 +74,9 @@ class Island:
         t_sk_tot = t_ev_tot = 0
         failed_iterations = 0
         bad_mutations = set()
-
-        while self.iteration - start_iteration < iterations:
+        while self.iteration - start_iteration < self.run_iterations:
             self.iteration += 1
-            if (self.iteration - start_iteration) == iterations:
+            if (self.iteration - start_iteration) == self.run_iterations:
                 break
 
             rand = random()

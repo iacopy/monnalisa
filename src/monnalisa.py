@@ -39,7 +39,7 @@ def main(options):
     print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)
 
-    islands = tuple([Island(shapes_encoder, im_eval) for _ in range(options.n_islands)])
+    islands = tuple([Island(shapes_encoder, im_eval, run_iterations=options.crossover_freq) for _ in range(options.n_islands)])
     best_ev_offspring = islands[0].best  # arbitrary individual
     status = {
         'best_ev_offspring': best_ev_offspring,
@@ -68,9 +68,14 @@ def main(options):
     t_0 = time.time()
     total_session_iterations = 0
     while True:
+        # =============================================
+        # ------------------ ISLANDS ------------------
+        # =============================================
+
         i_t0 = time.time()
+
         for i_isla, isla in enumerate(islands):
-            delta = isla.run(options.crossover_freq)
+            delta = isla.run()
 
             print('i = {i}, it = {it:,}, v = {ev:,} ({d:,})'.format(
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation'], d=delta))
