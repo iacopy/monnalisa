@@ -1,6 +1,13 @@
+"""
+Disegna a caso.
+
+* isole
+* multiprocessing
+"""
 import os
 import time
 from functools import partial
+from multiprocessing import Pool, cpu_count
 
 import cli
 from drawer import ShapesEncoder
@@ -10,10 +17,15 @@ from history import HistoryIO
 from island import Island
 from mating import mate
 
-
 p_join = os.path.join
 
 BASES = '01'
+
+
+def worker(isola):
+    """Just call Island.run() and return Island instance itself."""
+    isola.run()
+    return isola
 
 
 def main(options):
@@ -65,6 +77,12 @@ def main(options):
 
     print('{} islands: {}'.format(len(islands), islands))
 
+    # Deciding number of processes to run islands
+    processes = options.processes
+    if not processes:
+        processes = min(len(islands), cpu_count())
+    print('Running across {} process{}'.format(processes, (processes > 1) * 'es'))
+
     t_0 = time.time()
     total_session_iterations = 0
     while True:
@@ -74,9 +92,11 @@ def main(options):
 
         i_t0 = time.time()
 
-        for i_isla, isla in enumerate(islands):
-            delta = isla.run()
+        with Pool(processes=processes) as pool:
+            islands = pool.map(worker, islands)
 
+        for i_isla, isla in enumerate(islands):
+            delta = isla.run_delta_evaluation
             print('i = {i}, it = {it:,}, v = {ev:,} ({d:,})'.format(
                 i=i_isla, it=isla.iteration, ev=isla.best['evaluation'], d=delta))
 

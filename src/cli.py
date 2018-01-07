@@ -6,6 +6,9 @@ STOP = 10 ** 6
 
 
 def get_options():
+    """
+    Parse arguments from command line.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('target', help='target image path')
     parser.add_argument('--resize', type=int, default=128,
@@ -32,6 +35,8 @@ def get_options():
         help='enable single position probability mutations (experimental)')
     parser.add_argument('--restart', default=False, action='store_true',
         help='do not resume existing history, but *erase* it and restart [default=%(default)s]')
+    parser.add_argument('-p', '--processes', type=int, default=0,
+        help='number of processes in which islands runs are distributed (0 = auto) [default=%(default)s]')
 
     options = parser.parse_args()
     if "RANDOMSEED" in os.environ:

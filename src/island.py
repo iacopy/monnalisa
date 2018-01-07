@@ -37,6 +37,7 @@ class Island:
         self.adam = genome
         self.id = md5(genome.encode()).hexdigest()
         self.short_id = self.id[:7]
+        self.run_delta_evaluation = 0  # delta evaluation between run end and run start
 
     @property
     def best_evaluation(self):
@@ -57,6 +58,8 @@ class Island:
         self.best = best
 
     def run(self):
+        t_0 = time.time()
+
         self.last_run_good_mutations = []
 
         evaluate = self.evaluate
@@ -136,5 +139,7 @@ class Island:
         t_ev_avoided = t_ev_mean * n_skipped_evaluations
         self.t_saved = t_ev_avoided - t_sk_tot
 
-        # Return delta evaluation from run start
-        return father_evaluation - starting_evaluation
+        self.run_delta_evaluation = father_evaluation - starting_evaluation
+
+        t = time.time() - t_0
+        print('Island {} run: {:.2f} ({:.2f} it/s)'.format(self.short_id, t, self.run_iterations / t))
