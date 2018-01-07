@@ -84,6 +84,7 @@ def main(options):
         draw_image_mode=options.draw_image_mode,
         shape=options.shape,
         n_shapes=n_shapes,
+        symmetry=options.symmetry,
     )
     print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)

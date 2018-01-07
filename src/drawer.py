@@ -31,6 +31,7 @@ class ShapesEncoder:
             shape=Shape.TRIANGLE,
             n_shapes=32,
             color_bit_depth=8,
+            symmetry='',
         ):
         print('ShapesEncoder init with image_mode={}'.format(image_mode))
         self.image_size = image_size
@@ -39,6 +40,7 @@ class ShapesEncoder:
         self.image_mode = image_mode
         self.draw_image_mode = draw_image_mode
         self.color_channels = len(draw_image_mode)
+        self.symmetry = symmetry
         self.bg_warned = False
         # TODO: refactor shape e n_shaoes in a single attribute
         self.shape = Shape(shape)
@@ -118,7 +120,7 @@ class ShapesEncoder:
                 break
             else:
                 if visible:
-                    shapes.append((points, color))
+                    shapes.append((color, points))
         return {'background': bg_color, 'shapes': shapes,
                 'annotations': annotations}
 
@@ -155,6 +157,7 @@ class ShapesEncoder:
             decoded['background'],
             dst_image_mode=self.image_mode,
             draw_image_mode=self.draw_image_mode,
+            symmetry=self.symmetry,
         )
 
     def draw_as_svg(self, sequence, filename):
@@ -172,7 +175,10 @@ class ShapesEncoder:
             fill='rgb({}%, {}%, {}%)'.format(r * 100, g * 100, b * 100),
         )
         dwg.add(background)
-        for points, color in decoded['shapes']:
+
+        total_shapes = symmetrify_shapes(self.image_size, self.symmetry, decoded['shapes'])
+
+        for color, points in total_shapes:
             color = [v / 255 for v in color]
             r, g, b, a = tuple_to_rgba(color)
             if self.shape is Shape.ELLIPSE:
@@ -209,7 +215,9 @@ def draw_shapes(
         image_size, shapes, shape,
         background_color='white',
         dst_image_mode='RGB',
-        draw_image_mode='RGBA'):
+        draw_image_mode='RGBA',
+        symmetry='',
+    ):
     """
     Create an RGB (by default) image and draw `shapes` on it
     in RGBA mode (with alpha).
@@ -224,12 +232,43 @@ def draw_shapes(
     # print('Drawing in {} mode'.format(draw_image_mode))
     drawer = ImageDraw.Draw(im, draw_image_mode)
 
-    for points, color in shapes:
+    total_shapes = symmetrify_shapes(image_size, symmetry, shapes)
+
+    for color, points in total_shapes:
         if shape is Shape.ELLIPSE:
             drawer.ellipse(points, color)
         else:
             drawer.polygon(points, color)
     return im
+
+
+def symmetrify_shapes(image_size, symmetry, shapes):
+    total = list(shapes)
+    for element in symmetry:
+        for color, points in shapes:
+            total.append((color, get_symmetry(image_size, element, points)))
+        shapes = list(total)
+    total.sort()
+    return total
+
+
+def get_symmetry(image_size, symmetry_element, points):
+    """
+    Return symmetric points against given symmetry element.
+    """
+    width, height = image_size
+    if symmetry_element == 'x':
+        rv = [(width - x, y) for (x, y) in points]
+    elif symmetry_element == 'y':
+        rv = [(x, height - y) for (x, y) in points]
+    elif symmetry_element == 'o':
+        rv = [(width - x, height - y) for (x, y) in points]
+    elif symmetry_element == '.':
+        return points
+    else:
+        raise Exception('Invalid symmetry_element value: "{}"'.format(symmetry_element))
+    return rv
+
 
 
 def demo():
