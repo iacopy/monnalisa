@@ -13,7 +13,7 @@ from multiprocessing import Pool, cpu_count
 import cli
 from drawer import ShapesEncoder
 from evaluator import ImageEvaluator, func_evaluate
-from genome import genetic_distances
+from genome import genetic_distances, opposite_genome
 from history import HistoryIO
 from island import Island
 from mating import mate
@@ -65,6 +65,19 @@ def optimize_processes(processes, time_per_processes, count_threshold, max_proce
     return processes
 
 
+def generate_islands(options, shapes_encoder, im_eval):
+    rv = []
+    while len(rv) < options.n_islands:
+        isola = Island(shapes_encoder, im_eval, run_iterations=options.crossover_freq)
+        rv.append(isola)
+        if len(rv) < options.n_islands:
+            complentary = Island(
+                shapes_encoder, im_eval,
+                genome=opposite_genome(isola.adam), run_iterations=options.crossover_freq)
+            rv.append(complentary)
+    return tuple(rv)
+
+
 def main(options):
     """
     Simplest GA main function.
@@ -89,7 +102,7 @@ def main(options):
     print('Genome length: {:,}'.format(shapes_encoder.genome_size))
     evaluate = partial(func_evaluate, shapes_encoder, im_eval)
 
-    islands = tuple([Island(shapes_encoder, im_eval, run_iterations=options.crossover_freq) for _ in range(options.n_islands)])
+    islands = generate_islands(options, shapes_encoder, im_eval)
     best_ev_offspring = islands[0].best  # arbitrary individual
     status = {
         'best_ev_offspring': best_ev_offspring,

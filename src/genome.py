@@ -13,6 +13,13 @@ def generate(bases, length):
     return ''.join([choice(bases) for _ in range(length)])
 
 
+def opposite_genome(genome):
+    rv = []
+    for base in genome:
+        rv.append(str(int(not int(base))))
+    return ''.join(rv)
+
+
 def genetic_distances(*genomes):
     """
     Restituisce una lista delle distanze genetiche tra tutti i genomi passati.

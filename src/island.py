@@ -12,7 +12,14 @@ from transpose import transpose
 class Island:
     counter = 0
 
-    def __init__(self, shapes_encoder, evaluator, run_iterations=1000, k_mut=1.0, p_transposition=0.5):
+    def __init__(self,
+                 shapes_encoder,
+                 evaluator,
+                 genome=None,
+                 run_iterations=1000,
+                 k_mut=1.0,
+                 p_transposition=0.5,
+                 ):
         self.shapes_encoder = shapes_encoder
         self.evaluator = evaluator
         self.evaluate = partial(func_evaluate, shapes_encoder, evaluator)
@@ -32,7 +39,8 @@ class Island:
         self.iteration = 0
         self.t_saved = 0
 
-        genome = self.shapes_encoder.generate()
+        genome = genome if genome else self.shapes_encoder.generate()
+        assert len(genome) == genome_size, '{} != {}'.format(len(genome), genome_size)
         self.best = self.evaluate(genome)
         self.adam = genome
         self.id = md5(genome.encode()).hexdigest()
