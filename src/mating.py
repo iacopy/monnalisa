@@ -23,7 +23,7 @@ def mate(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1)
 
     ev_offsprings = [evaluate(genome) for genome in offsprings]
     ev_offsprings.sort(key=itemgetter('evaluation'))
-    if ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
+    if ev_offsprings and ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
         return ev_offsprings[0]
 
 
