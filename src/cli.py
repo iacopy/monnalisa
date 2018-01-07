@@ -22,10 +22,10 @@ def get_options():
         help='number of islands [default: %(default)s]')
     parser.add_argument('-c', '--crossover-freq', type=int, default=1000,
         help='number of separate islands iterations between crossover [default: %(default)s]')
-    parser.add_argument('-o', '--n-crossovers', type=int, default=1,
+    parser.add_argument('-o', '--n-crossovers', type=int, default=3,
         help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
-    parser.add_argument('--f1', type=int, default=32, help='f1 generation size')
-    parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
+    parser.add_argument('--f1', type=int, default=64, help='f1 generation size')
+    parser.add_argument('--f2', type=int, default=128, help='f2 generation size')
     parser.add_argument('--iterations', type=int, default=STOP,
         help='number of iterations [default: %(default)s]')
     parser.add_argument('-d', '--draw-image_mode', default='RGBA', help='[default: %(default)s]')

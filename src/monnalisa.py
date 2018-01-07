@@ -151,6 +151,9 @@ def main(options):
         gen_diffs = genetic_distances(*islands_genomes)
         print('Variab gen (mean) = {:.3f}'.format(sum(gen_diffs) / len(islands)))
 
+        # =============================================
+        # ---------------- CROSSOVER ------------------
+        # =============================================
         new_best_ev_offspring = mate(
             islands, best_ev_offspring, evaluate,
             f1_size=options.f1,
@@ -165,6 +168,7 @@ def main(options):
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
         co_genome = best_ev_offspring['genome']
+
         shapes_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
 
         genetic_dist = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
