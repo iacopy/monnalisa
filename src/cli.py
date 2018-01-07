@@ -23,8 +23,6 @@ def get_options():
         help='number of separate islands iterations between crossover [default: %(default)s]')
     parser.add_argument('-o', '--n-crossovers', type=int, default=1,
         help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
-    parser.add_argument('-f', '--saving-freq', type=int, default=1000,
-        help='image saving frequency in iterations [default: %(default)s]')
     parser.add_argument('--f1', type=int, default=32, help='f1 generation size')
     parser.add_argument('--f2', type=int, default=64, help='f2 generation size')
     parser.add_argument('--iterations', type=int, default=STOP,
