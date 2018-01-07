@@ -8,9 +8,10 @@ from random import shuffle
 import crossover
 
 
-def mate(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1):
+def mate(islands, evaluate, f1_size, f2_size, n_crossovers=1):
+    parent_genomes = [isla.best['genome'] for isla in islands]
     f1_offsprings = get_offsprings(
-        [isla.best['genome'] for isla in islands],
+        parent_genomes,
         n_max_offsprings=f1_size,
         n_crossovers=n_crossovers,
     )
@@ -23,8 +24,9 @@ def mate(islands, best_ev_offspring, evaluate, f1_size, f2_size, n_crossovers=1)
 
     ev_offsprings = [evaluate(genome) for genome in offsprings]
     ev_offsprings.sort(key=itemgetter('evaluation'))
-    if ev_offsprings and ev_offsprings[0]['evaluation'] < best_ev_offspring['evaluation']:
-        return ev_offsprings[0]
+    for ev_offspring in ev_offsprings:
+        if ev_offspring['genome'] not in parent_genomes:
+            return ev_offspring
 
 
 def get_offsprings(parents, n_max_offsprings=64, n_crossovers=1):
@@ -36,17 +38,19 @@ def get_offsprings(parents, n_max_offsprings=64, n_crossovers=1):
         parents {list} -- parents sources for crossovers
     """
     offsprings = []
-    # TODO: randomize parents or parents indices
-    for (p_a_index, p_b_index) in combinations(range(len(parents)), 2):
+    randomized_parent_indices = list(range(len(parents)))
+    shuffle(randomized_parent_indices)
+    for (p_a_index, p_b_index) in combinations(randomized_parent_indices, 2):
         p_a = parents[p_a_index]
         p_b = parents[p_b_index]
         for i in range(n_crossovers):
-            crossover_points = crossover.normal_rand_crossover_operator(p_a, p_b)
-            if crossover_points:
-                # otherwise no recombination, no new sequences
-                for offspring in [
-                    ''.join(c) for c in crossover.crossover(p_a, p_b, crossover_points)
-                    ]:
+            crossover_points = ()
+            while not crossover_points:
+                crossover_points = crossover.normal_rand_crossover_operator(p_a, p_b)
+            for offspring in [
+                ''.join(c) for c in crossover.crossover(p_a, p_b, crossover_points)
+                ]:
+                if offspring not in parents:
                     offsprings.append(offspring)
         # avoid explosion of combinations
         if len(offsprings) >= n_max_offsprings:

@@ -168,12 +168,12 @@ def main(options):
         # ---------------- CROSSOVER ------------------
         # =============================================
         new_best_ev_offspring = mate(
-            islands, best_ev_offspring, evaluate,
+            islands, evaluate,
             f1_size=options.f1,
             f2_size=options.f2,
             n_crossovers=options.n_crossovers,
         )
-        if new_best_ev_offspring:
+        if new_best_ev_offspring['evaluation'] < best_ev_offspring['evaluation']:
             print('New best crossover! ev = {:,}'.format(new_best_ev_offspring['evaluation']))
             new_best_ev_offspring['phenotype'].save(p_join(history_io.dirpath, 'best-crossover.png'))
             best_ev_offspring = new_best_ev_offspring
