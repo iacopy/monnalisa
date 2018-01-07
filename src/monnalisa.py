@@ -6,6 +6,7 @@ Disegna a caso.
 """
 import os
 import time
+from collections import Counter
 from functools import partial
 from multiprocessing import Pool, cpu_count
 
@@ -16,6 +17,7 @@ from genome import genetic_distances
 from history import HistoryIO
 from island import Island
 from mating import mate
+from utils import AccumulativeMean
 
 p_join = os.path.join
 
@@ -26,6 +28,41 @@ def worker(isola):
     """Just call Island.run() and return Island instance itself."""
     isola.run()
     return isola
+
+
+def parallelislands(islands, processes):
+    """
+    Run `islands` across `processes` processes.
+    """
+    i_t0 = time.time()
+    if processes == 1:
+        # Don't use Pool
+        islands = [worker(isola) for isola in islands]
+    else:
+        with Pool(processes=processes) as pool:
+            islands = pool.map(worker, islands)
+    i_elapsed = time.time() - i_t0
+    iterations = sum([isola.run_iterations for isola in islands])
+    run_speed = iterations / i_elapsed
+    print('Islands run_speed: {:.3f} it/s'.format(run_speed))
+    return islands, i_elapsed
+
+
+def optimize_processes(processes, time_per_processes, count_threshold, max_processes):
+    """Return number of processes based on `time_per_processes` means.
+
+    :param count_threshold: how many time values to collect for means
+    """
+    completed = True
+    for p_accmean in reversed(time_per_processes.most_common()):
+        print(p_accmean)
+        if p_accmean[1].count < count_threshold:
+            completed = False
+    if completed:
+        processes = time_per_processes.most_common()[-1][0]
+    else:
+        processes = processes + 1 if processes < max_processes else 1
+    return processes
 
 
 def main(options):
@@ -78,22 +115,26 @@ def main(options):
     print('{} islands: {}'.format(len(islands), islands))
 
     # Deciding number of processes to run islands
+    max_processes = max(len(islands) * 2, cpu_count() * 2)
+    count_threshold = 3
     processes = options.processes
-    if not processes:
-        processes = min(len(islands), cpu_count())
-    print('Running across {} process{}'.format(processes, (processes > 1) * 'es'))
+    time_per_processes = Counter()
+    for n in range(1, max_processes + 1):
+        time_per_processes[n] = AccumulativeMean(round_digits=1)
 
     t_0 = time.time()
     total_session_iterations = 0
     while True:
+        processes = options.processes if options.processes else \
+            optimize_processes(processes, time_per_processes, count_threshold, max_processes)
+        print('Running {i} island{s} across {p} process{es}'.format(
+            i=len(islands), s=(len(islands) > 1) * 's', p=processes, es=(processes > 1) * 'es')
+        )
         # =============================================
         # ------------------ ISLANDS ------------------
         # =============================================
-
-        i_t0 = time.time()
-
-        with Pool(processes=processes) as pool:
-            islands = pool.map(worker, islands)
+        islands, run_speed = parallelislands(islands, processes)
+        time_per_processes[processes] += run_speed
 
         for i_isla, isla in enumerate(islands):
             delta = isla.run_delta_evaluation
@@ -103,10 +144,6 @@ def main(options):
             if delta < 0:
                 isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
-
-        i_elapsed = time.time() - i_t0
-        speed = (options.crossover_freq * len(islands)) / i_elapsed
-        print('Islands speed: {:.3f} it/s'.format(speed))
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
         islands_genomes = [isla.best['genome'] for isla in islands]
