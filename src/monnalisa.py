@@ -11,12 +11,13 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 
 import cli
-from drawer import ShapesEncoder
+from drawer import draw_as_svg
 from evaluator import ImageEvaluator, func_evaluate
 from genome import genetic_distances, opposite_genome
 from history import HistoryIO
 from island import Island
 from mating import mate
+from shapes_encoder import ShapesEncoder
 from utils import AccumulativeMean
 
 p_join = os.path.join
@@ -54,8 +55,13 @@ def optimize_processes(processes, time_per_processes, count_threshold, max_proce
     :param count_threshold: how many time values to collect for means
     """
     completed = True
+    worst_mean = list(time_per_processes.most_common())[0][1].mean
+    print('worst mean =', worst_mean)
     for p_accmean in reversed(time_per_processes.most_common()):
-        print(p_accmean)
+        np, accumulative_mean = p_accmean
+        mean = accumulative_mean.mean
+        factor = worst_mean / (mean if mean else float('inf'))
+        print('{} processes: {:.2f} ({:.1f} x)'.format(np, mean, factor))
         if p_accmean[1].count < count_threshold:
             completed = False
     if completed:
@@ -182,7 +188,14 @@ def main(options):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
         co_genome = best_ev_offspring['genome']
 
-        shapes_encoder.draw_as_svg(co_genome, p_join(history_io.dirpath, 'best-crossover.svg'))
+        # TODO: refactor
+        decoded = isla.shapes_encoder.decode(co_genome)
+        draw_as_svg(p_join(history_io.dirpath, 'best_crossover.svg'),
+                    image_size=image_size,
+                    shapes=decoded['shapes'], shape=options.shape,
+                    background_color=decoded['background'],
+                    dst_image_mode=options.target_image_mode, draw_image_mode=options.draw_image_mode,
+                    symmetry=options.symmetry)
 
         genetic_dist = [genetic_distances(co_genome, g)[0] for g in islands_genomes]
         for i_isla, distance in enumerate(genetic_dist):

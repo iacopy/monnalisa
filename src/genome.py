@@ -4,8 +4,7 @@ from math import factorial as f
 from random import random as rand
 from random import choice, choices, sample
 
-from numpy import array
-from numpy import sqrt
+from numpy import array, sqrt
 
 
 def generate(bases, length):

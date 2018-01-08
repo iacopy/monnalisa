@@ -1,5 +1,6 @@
-from drawer import ShapesEncoder, Shape
 import pytest
+
+from shapes_encoder import Shape, ShapesEncoder
 
 
 @pytest.mark.parametrize('case', [
@@ -38,8 +39,8 @@ def test_decode_rgba():
         'background': (0, 0, 0, 0),
         'shapes': [
             (
-                [(0, 1), (1, 0)],
                 (255, 255, 255, 255),
+                [(0, 1), (1, 0)],
             ),
         ],
         'annotations': {'visibility': [32]},
@@ -60,12 +61,12 @@ def test_encode_grayscale_genome_size(im_size, im_mode, n_shapes, shape, expecte
     {
         'genome': '0000000010000011011111111',
         'background': (0, ),
-        'shapes': [([(0, 0), (0, 1), (1, 0)], (255,))],
+        'shapes': [((255,), [(0, 0), (0, 1), (1, 0)])],
     },
     {
         'genome': '0000000110000011011111110',
         'background': (1, ),
-        'shapes': [([(0, 0), (0, 1), (1, 0)], (254,))],
+        'shapes': [((254,), [(0, 0), (0, 1), (1, 0)])],
     },
     # visibility 0 at pos 8
     {
@@ -77,13 +78,13 @@ def test_encode_grayscale_genome_size(im_size, im_mode, n_shapes, shape, expecte
     {
         'genome': '1111111110011111111111111',
         'background': (255, ),
-        'shapes': [([(1, 1), (1, 1), (1, 1)], (255,))],
+        'shapes': [((255,), [(1, 1), (1, 1), (1, 1)])],
     },
     # Extra length
     {
         'genome': '11111111100111111111111110000',
         'background': (255, ),
-        'shapes': [([(1, 1), (1, 1), (1, 1)], (255,))],
+        'shapes': [((255,), [(1, 1), (1, 1), (1, 1)])],
     },
 ])
 def test_grayscale(case):
