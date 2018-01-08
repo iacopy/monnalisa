@@ -51,7 +51,7 @@ class ShapesEncoder:
         color_bits = color_bit_depth * self.color_channels
         visible_bits = 1
         self.genome_size = color_bits + n_shapes * (
-            visible_bits + color_bits + points_per_shape * sum(size_bits)
+            visible_bits + color_bits + sum(size_bits) + points_per_shape * sum(size_bits)
         )
         sb = sum(size_bits)
         print('genome_size = {color_bits} + {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * {sb})'.format(**locals()))
@@ -113,8 +113,11 @@ class ShapesEncoder:
             try:
                 annotations['visibility'].append(self.index)
                 visible = self._read(sequence, visible_bits)
+                position = self._read_points(sequence, 1)[0]
                 # read shape points
                 points = self._read_points(sequence, points_per_shape)
+                for i, point in enumerate(points):
+                    points[i] = position[0] + point[0], position[1] + point[1]
                 color = self._read_color(sequence)
             except ValueError as err:
                 break
