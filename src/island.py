@@ -46,6 +46,7 @@ class Island:
         self.id = md5(genome.encode()).hexdigest()
         self.short_id = self.id[:7]
         self.run_delta_evaluation = 0  # delta evaluation between run end and run start
+        self.animation_frames = []
 
     @property
     def best_evaluation(self):

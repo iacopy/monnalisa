@@ -10,6 +10,8 @@ from collections import Counter
 from functools import partial
 from multiprocessing import Pool, cpu_count
 
+from imageio import imread, mimwrite
+
 import cli
 from drawer import draw_as_svg
 from evaluator import ImageEvaluator, func_evaluate
@@ -142,6 +144,7 @@ def main(options):
     for n in range(1, max_processes + 1):
         time_per_processes[n] = AccumulativeMean(round_digits=1)
 
+    animation = []  # store frames for gif animation
     t_0 = time.time()
     total_session_iterations = 0
     while True:
@@ -165,6 +168,9 @@ def main(options):
                 isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
 
+            isla.animation_frames.append(imread(isla_best_dst))
+            mimwrite(isla_best_dst + '.gif', isla.animation_frames)
+
         islands_best_ev = [isla.best_evaluation for isla in islands]
         islands_genomes = [isla.best['genome'] for isla in islands]
         gen_diffs = genetic_distances(*islands_genomes)
@@ -181,8 +187,11 @@ def main(options):
         )
         if new_best_ev_offspring['evaluation'] < best_ev_offspring['evaluation']:
             print('New best crossover! ev = {:,}'.format(new_best_ev_offspring['evaluation']))
-            new_best_ev_offspring['phenotype'].save(p_join(history_io.dirpath, 'best-crossover.png'))
+            best_crossover_dst = p_join(history_io.dirpath, 'best-crossover.png')
+            new_best_ev_offspring['phenotype'].save(best_crossover_dst)
             best_ev_offspring = new_best_ev_offspring
+            animation.append(imread(best_crossover_dst))
+            mimwrite(p_join(history_io.dirpath, 'best_crossover.gif'), animation)
 
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
             print('crossover is currently the best: {:,}'.format(best_ev_offspring['evaluation']))
