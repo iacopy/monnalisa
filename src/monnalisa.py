@@ -56,12 +56,12 @@ def optimize_processes(processes, time_per_processes, count_threshold, max_proce
     """
     completed = True
     worst_mean = list(time_per_processes.most_common())[0][1].mean
-    print('worst mean =', worst_mean)
     for p_accmean in reversed(time_per_processes.most_common()):
         np, accumulative_mean = p_accmean
         mean = accumulative_mean.mean
+        count = accumulative_mean.count
         factor = worst_mean / (mean if mean else float('inf'))
-        print('{} processes: {:.2f} ({:.1f} x)'.format(np, mean, factor))
+        print('{} processes: {:.2f}[{}] ({:.1f} x)'.format(np, mean, count, factor))
         if p_accmean[1].count < count_threshold:
             completed = False
     if completed:
