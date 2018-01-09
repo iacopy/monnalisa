@@ -84,7 +84,7 @@ class Island:
         # cache stats
         n_evaluations = n_skipped_evaluations = 0
         t_sk_tot = t_ev_tot = 0
-        failed_iterations = 0
+        failed_iterations = successful_iterations = 0
         bad_mutations = set()
         while self.iteration - start_iteration < self.run_iterations:
             self.iteration += 1
@@ -127,6 +127,7 @@ class Island:
             t_ev_tot += time.time() - t_ev_0
 
             if child_evaluation < father_evaluation:
+                successful_iterations += 1
                 self.fitness_improved(mutation, father_evaluation, child_evaluation)
 
                 self.set_best(child_rv)
@@ -151,4 +152,7 @@ class Island:
         self.run_delta_evaluation = father_evaluation - starting_evaluation
 
         t = time.time() - t_0
+        print('Improvements/total = {:,}/{:,} ({:.01%})'.format(
+            successful_iterations, self.run_iterations, successful_iterations / self.run_iterations))
         print('Island {} run: {:.2f} ({:.2f} it/s)'.format(self.short_id, t, self.run_iterations / t))
+
