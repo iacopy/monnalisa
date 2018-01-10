@@ -11,6 +11,7 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 
 from imageio import imread, mimwrite
+from numpy import asarray
 
 import cli
 from drawer import draw_as_svg
@@ -168,8 +169,8 @@ def main(options):
                 isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
 
-            isla.animation_frames.append(imread(isla_best_dst))
-            mimwrite(isla_best_dst + '.gif', isla.animation_frames)
+                isla.animation_frames.append(asarray(isla.best['phenotype'], order='F'))
+                mimwrite(isla_best_dst + '.gif', isla.animation_frames)
 
         islands_best_ev = [isla.best_evaluation for isla in islands]
         islands_genomes = [isla.best['genome'] for isla in islands]
@@ -190,7 +191,8 @@ def main(options):
             best_crossover_dst = p_join(history_io.dirpath, 'best-crossover.png')
             new_best_ev_offspring['phenotype'].save(best_crossover_dst)
             best_ev_offspring = new_best_ev_offspring
-            animation.append(imread(best_crossover_dst))
+            image_array = asarray(new_best_ev_offspring['phenotype'], order='F')
+            animation.append(image_array)
             mimwrite(p_join(history_io.dirpath, 'best_crossover.gif'), animation)
 
         if best_ev_offspring['evaluation'] < min(islands_best_ev):
