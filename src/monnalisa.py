@@ -77,12 +77,16 @@ def optimize_processes(processes, time_per_processes, count_threshold, max_proce
 def generate_islands(options, shapes_encoder, im_eval):
     rv = []
     while len(rv) < options.n_islands:
-        isola = Island(shapes_encoder, im_eval, run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1))
+        isola = Island(
+            shapes_encoder, im_eval,
+            run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
         rv.append(isola)
         if len(rv) < options.n_islands:
+            # FIXME: Warning, almost duplicated code
             complentary = Island(
                 shapes_encoder, im_eval,
-                genome=opposite_genome(isola.adam), run_iterations=options.crossover_freq)
+                genome=opposite_genome(isola.adam),
+                run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
             rv.append(complentary)
     return tuple(rv)
 
