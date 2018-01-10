@@ -17,7 +17,6 @@ IMAGE_MODES = list(CHANNELS_TO_IMAGE_MODE.values())
 
 def draw_as_svg(filename,
                 image_size, shapes, shape,
-                background_color='white',
                 dst_image_mode='RGB',
                 draw_image_mode='RGBA',
                 symmetry='',
@@ -28,14 +27,6 @@ def draw_as_svg(filename,
     width, height = image_size
     dwg = svgwrite.Drawing(filename=filename)
     dwg.viewbox(width=width, height=height)
-    color = [v / 255 for v in background_color]
-    r, g, b, a = tuple_to_rgba(color)
-    background = dwg.polygon(
-        points=[(0, 0), (width, 0), (width, height), (0, height)],
-        fill='rgb({}%, {}%, {}%)'.format(r * 100, g * 100, b * 100),
-    )
-    dwg.add(background)
-
     total_shapes = symmetrify_shapes(image_size, symmetry, shapes)
 
     for color, points in total_shapes:
@@ -73,7 +64,6 @@ def tuple_to_rgba(color):
 
 def draw_shapes(
         image_size, shapes, shape,
-        background_color='white',
         dst_image_mode='RGB',
         draw_image_mode='RGBA',
         symmetry='',
@@ -86,9 +76,8 @@ def draw_shapes(
     # print('image_size =', image_size)
     # print('shapes =', shapes)
     # print('dst_image_mode =', dst_image_mode)
-    # print('background_color =', background_color)
     # print('Creating {} image'.format(dst_image_mode))
-    im = Image.new(dst_image_mode, image_size, color=background_color)
+    im = Image.new(dst_image_mode, image_size, color='white')
     # print('Drawing in {} mode'.format(draw_image_mode))
     drawer = ImageDraw.Draw(im, draw_image_mode)
 

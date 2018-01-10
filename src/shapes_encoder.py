@@ -37,11 +37,11 @@ class ShapesEncoder:
         size_bits = ceil(log(width, 2)), ceil(log(height, 2))
         color_bits = color_bit_depth * self.color_channels
         visible_bits = 1
-        self.genome_size = color_bits + n_shapes * (
+        self.genome_size = n_shapes * (
             visible_bits + color_bits + sum(size_bits) + points_per_shape * sum(size_bits)
         )
         sb = sum(size_bits)
-        print('genome_size = {color_bits} + {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * {sb})'.format(**locals()))
+        print('genome_size = {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * {sb})'.format(**locals()))
 
         self.bits = dict(
             channel=color_bits // self.color_channels,
@@ -93,7 +93,6 @@ class ShapesEncoder:
         shapes = []
         annotations = {}
         annotations['visibility'] = []  # list of visibility bases
-        bg_color = self._read_color(sequence)
         visible_bits = self.bits['visible']
         points_per_shape = POINTS_PER_SHAPE[self.shape]
         while self.index < len(sequence):
@@ -111,8 +110,7 @@ class ShapesEncoder:
             else:
                 if visible:
                     shapes.append((color, points))
-        return {'background': bg_color, 'shapes': shapes,
-                'annotations': annotations}
+        return {'shapes': shapes, 'annotations': annotations}
 
     def generate(self, set_visibility=None):
         """
@@ -132,19 +130,8 @@ class ShapesEncoder:
         Convert `sequence` into a Pillow image (in memory).
         """
         decoded = self.decode(sequence)
-
-        # FIXME: no worning but use less channels for the bg if needed
-        if not self.bg_warned:
-            bg_color = decoded['background'][: len(self.image_mode)]
-            if bg_color != decoded['background']:
-                print('WARNING: {} unused channel(s) for the background!'.format(
-                    len(decoded['background']) - len(bg_color)
-                ))
-                self.bg_warned = True
-
         return draw_shapes(
             self.image_size, decoded['shapes'], self.shape,
-            decoded['background'],
             dst_image_mode=self.image_mode,
             draw_image_mode=self.draw_image_mode,
             symmetry=self.symmetry,

@@ -202,7 +202,6 @@ def main(options):
         draw_as_svg(p_join(history_io.dirpath, 'best_crossover.svg'),
                     image_size=image_size,
                     shapes=decoded['shapes'], shape=options.shape,
-                    background_color=decoded['background'],
                     dst_image_mode=options.target_image_mode, draw_image_mode=options.draw_image_mode,
                     symmetry=options.symmetry)
 
