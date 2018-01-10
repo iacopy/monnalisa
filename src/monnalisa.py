@@ -10,7 +10,7 @@ from collections import Counter
 from functools import partial
 from multiprocessing import Pool, cpu_count
 
-from imageio import imread, mimwrite
+from imageio import mimwrite
 from numpy import asarray
 
 import cli
