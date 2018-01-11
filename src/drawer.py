@@ -5,12 +5,20 @@ from PIL import Image, ImageDraw
 
 
 class Shape(Enum):
-    TRIANGLE = 't'
+    CIRCLE = 'c'
     ELLIPSE = 'e'
     QUAD = 'q'
+    RECT = 'r'
+    TRIANGLE = 't'
 
 
-POINTS_PER_SHAPE = {Shape.TRIANGLE: 3, Shape.ELLIPSE: 2, Shape.QUAD: 4}
+POINTS_PER_SHAPE = {
+    Shape.CIRCLE: 1,
+    Shape.ELLIPSE: 2,
+    Shape.QUAD: 4,
+    Shape.RECT: 2,
+    Shape.TRIANGLE: 3,
+}
 CHANNELS_TO_IMAGE_MODE = {1: 'L', 2: 'LA', 3: 'RGB', 4: 'RGBA'}
 IMAGE_MODES = list(CHANNELS_TO_IMAGE_MODE.values())
 
@@ -86,6 +94,10 @@ def draw_shapes(
     for color, points in total_shapes:
         if shape is Shape.ELLIPSE:
             drawer.ellipse(points, color)
+        elif shape is Shape.CIRCLE:
+            drawer.ellipse((points[0], (points[0][0] + 10, points[0][1] + 10)), color)
+        elif shape is Shape.RECT:
+            drawer.rectangle(points, color)
         else:
             drawer.polygon(points, color)
     return im

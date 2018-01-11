@@ -16,7 +16,7 @@ def get_options():
     parser.add_argument('-n', '--n-shapes', type=int, default=64,
         help='number of shapes to use [default: %(default)s]')
     parser.add_argument('-s', '--shape', default='t',
-        help='shapes used to draw: t=triangle, e=ellipse, other=4-sides-polygon [default: %(default)s]')
+        help='shapes used to draw: t=triangle, q=quad, r=rect, c=circle, e=ellipse [default: %(default)s]')
     parser.add_argument('--symmetry', default='', help='Symmetry elements [default: %(default)s]')
     parser.add_argument('-i', '--n-islands', type=int, default=2,
         help='number of islands [default: %(default)s]')
