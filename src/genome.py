@@ -1,9 +1,13 @@
 from collections import Counter
 from itertools import combinations
 from math import factorial as f
-from math import sqrt
 from random import random as rand
-from random import choice, choices, sample
+from random import choice, sample
+try:
+    from random import choices
+except ImportError:
+    print('choices backported!')
+    from backports import choices
 
 
 def generate(bases, length):
