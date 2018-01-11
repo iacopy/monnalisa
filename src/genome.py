@@ -1,10 +1,9 @@
 from collections import Counter
 from itertools import combinations
 from math import factorial as f
+from math import sqrt
 from random import random as rand
 from random import choice, choices, sample
-
-from numpy import array, sqrt
 
 
 def generate(bases, length):
@@ -30,7 +29,7 @@ def genetic_distances(*genomes):
     """
     rv = []
     for genome_a, genome_b in combinations(genomes, 2):
-        rv.append(sqrt(((array(list(map(int, genome_a))) - array(list(map(int, genome_b)))) ** 2).sum()))
+        rv.append(sum((abs(int(a) - int(b)) for a, b in zip(genome_a, genome_b))))
     return rv
 
 

@@ -26,6 +26,8 @@ def get_options():
         help='number of for crossover reproductions for each couple of partners [default: %(default)s]')
     parser.add_argument('--f1', type=int, default=64, help='f1 generation size')
     parser.add_argument('--f2', type=int, default=128, help='f2 generation size')
+    parser.add_argument('-t', '--p-transposition-replicative', type=float, default=0.0,
+        help='probability that a transposition was replicative (increasing genome length) [default: %(default)s]')
     parser.add_argument('--iterations', type=int, default=STOP,
         help='number of iterations [default: %(default)s]')
     parser.add_argument('-d', '--draw-image_mode', default='RGBA', help='[default: %(default)s]')

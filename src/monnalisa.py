@@ -80,6 +80,8 @@ def generate_islands(options, shapes_encoder, im_eval):
         isola = Island(
             shapes_encoder, im_eval,
             run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
+            p_transposition_replicative=options.p_transposition_replicative,
+        )
         rv.append(isola)
         if len(rv) < options.n_islands:
             # FIXME: Warning, almost duplicated code
@@ -87,6 +89,8 @@ def generate_islands(options, shapes_encoder, im_eval):
                 shapes_encoder, im_eval,
                 genome=opposite_genome(isola.adam),
                 run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
+                p_transposition_replicative=options.p_transposition_replicative,
+            )
             rv.append(complentary)
     return tuple(rv)
 
@@ -166,8 +170,8 @@ def main(options):
 
         for i_isla, isla in enumerate(islands):
             delta = isla.run_delta_evaluation
-            print('i = {i}, it = {it:,}, v = {ev:,} ({d:,})'.format(
-                i=i_isla, it=isla.iteration, ev=isla.best['evaluation'], d=delta))
+            print('i {i}, it: {it:,}, gl: {gl:,}, v = {ev:,} ({d:,})'.format(
+                i=i_isla, it=isla.iteration, gl=len(isla.best['genome']), ev=isla.best['evaluation'], d=delta))
 
             if delta < 0:
                 isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))

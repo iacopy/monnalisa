@@ -2,7 +2,8 @@ import time
 from collections import Counter
 from functools import partial
 from hashlib import md5
-from random import choice, random, randrange
+from random import random as rand
+from random import randrange
 
 from evaluator import func_evaluate
 from genome import flip_mutate, get_rand_positions
@@ -19,6 +20,8 @@ class Island:
                  run_iterations=1000,
                  k_mut=1.0,
                  p_transposition=0.5,
+                 p_inverted=0.01,  # use the main transposition random call ("absolute" p)
+                 p_transposition_replicative=0.1,  # another random call in case of transposition
                  ):
         self.shapes_encoder = shapes_encoder
         self.evaluator = evaluator
@@ -32,6 +35,10 @@ class Island:
         self.good_mutation_counter = Counter()
         self.bad_mutation_counter = Counter()
         self.p_transposition = p_transposition
+        self.p_inverted = p_inverted
+        self.p_transposition_replicative = p_transposition_replicative
+        if p_transposition_replicative > 0:
+            print('Replicative transposition enabled: {}'.format(p_transposition_replicative))
         # Salva le mutazioni buone dell'ultimo ciclo di run
         self.last_run_good_mutations = []
 
@@ -91,17 +98,18 @@ class Island:
             if (self.iteration - start_iteration) == self.run_iterations:
                 break
 
-            rand = random()
-            if rand <= self.p_transposition:
-                inverted = choice([True, False])
-                if rand <= self.p_transposition / 2:
+            transpose_rand = rand()
+            if transpose_rand < self.p_transposition:
+                inverted = transpose_rand <= self.p_inverted
+                replicative = rand() < self.p_transposition_replicative
+                if transpose_rand < self.p_transposition / 2:
                     start, end, dst = sorted([randrange(genome_size), randrange(genome_size), randrange(genome_size)])
                 else:
                     dst, start, end = sorted([randrange(genome_size), randrange(genome_size), randrange(genome_size)])
                 transposing = list(father_genome)
-                transpose(transposing, start, end, dst, replicative=False, inverted=inverted)
+                transpose(transposing, start, end, dst, replicative=replicative, inverted=inverted)
                 child_genome = ''.join(transposing)
-                mutation = ('T', (start, end, dst, False, inverted))
+                mutation = ('T', (start, end, dst, replicative, inverted))
             else:
                 # Generate random mutation positions
                 # frozenset is to cache bad mutations
@@ -155,4 +163,3 @@ class Island:
         print('Improvements/total = {:,}/{:,} ({:.01%})'.format(
             successful_iterations, self.run_iterations, successful_iterations / self.run_iterations))
         print('Island {} run: {:.2f} ({:.2f} it/s)'.format(self.short_id, t, self.run_iterations / t))
-
