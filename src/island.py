@@ -14,6 +14,7 @@ class Island:
     counter = 0
 
     def __init__(self,
+                 index,
                  shapes_encoder,
                  evaluator,
                  genome=None,
@@ -23,6 +24,7 @@ class Island:
                  p_inverted=0.01,  # use the main transposition random call ("absolute" p)
                  p_transposition_replicative=0.1,  # another random call in case of transposition
                  ):
+        self.index = index
         self.shapes_encoder = shapes_encoder
         self.evaluator = evaluator
         self.evaluate = partial(func_evaluate, shapes_encoder, evaluator)
@@ -54,6 +56,9 @@ class Island:
         self.short_id = self.id[:7]
         self.run_delta_evaluation = 0  # delta evaluation between run end and run start
         self.animation_frames = []
+
+    def __repr__(self):
+        return 'Island#{}'.format(self.index)
 
     @property
     def best_evaluation(self):

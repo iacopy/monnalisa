@@ -8,6 +8,7 @@ import os
 import time
 from collections import Counter
 from functools import partial
+from operator import attrgetter
 from multiprocessing import Pool, cpu_count
 
 from imageio import mimwrite
@@ -78,7 +79,7 @@ def generate_islands(options, shapes_encoder, im_eval):
     rv = []
     while len(rv) < options.n_islands:
         isola = Island(
-            shapes_encoder, im_eval,
+            len(rv), shapes_encoder, im_eval,
             run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
             p_transposition_replicative=options.p_transposition_replicative,
         )
@@ -86,7 +87,7 @@ def generate_islands(options, shapes_encoder, im_eval):
         if len(rv) < options.n_islands:
             # FIXME: Warning, almost duplicated code
             complentary = Island(
-                shapes_encoder, im_eval,
+                len(rv), shapes_encoder, im_eval,
                 genome=opposite_genome(isola.adam),
                 run_iterations=options.crossover_freq, k_mut=0.5 * (len(rv) + 1),
                 p_transposition_replicative=options.p_transposition_replicative,
@@ -168,13 +169,15 @@ def main(options):
         islands, run_speed = parallelislands(islands, processes)
         time_per_processes[processes] += run_speed
 
-        for i_isla, isla in enumerate(islands):
+        for i, isla in enumerate(sorted(islands, key=attrgetter('best_evaluation'))):
             delta = isla.run_delta_evaluation
-            print('i {i}, it: {it:,}, gl: {gl:,}, v = {ev:,} ({d:,})'.format(
-                i=i_isla, it=isla.iteration, gl=len(isla.best['genome']), ev=isla.best['evaluation'], d=delta))
+            print('#{rank} - i{i} it: {it:,}, gl: {gl:,}, v = {ev:,} ({d:,})'.format(
+                rank=i, i=isla.index, it=isla.iteration, gl=len(isla.best['genome']),
+                ev=isla.best['evaluation'], d=delta)
+            )
 
             if delta < 0:
-                isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(i_isla, isla.id[:7]))
+                isla_best_dst = p_join(history_io.dirpath, 'best-island-{}-{}.png'.format(isla.index, isla.id[:7]))
                 isla.best['phenotype'].save(isla_best_dst)
 
                 isla.animation_frames.append(asarray(isla.best['phenotype'], order='F'))
