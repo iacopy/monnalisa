@@ -27,6 +27,8 @@ def mate(islands, evaluate, f1_size, f2_size, n_crossovers=1):
     for ev_offspring in ev_offsprings:
         if ev_offspring['genome'] not in parent_genomes:
             return ev_offspring
+    # If all offsprings are equal to parents, return the first one
+    return ev_offsprings[0]
 
 
 def get_offsprings(parents, n_max_offsprings=64, n_crossovers=1):
