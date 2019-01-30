@@ -147,7 +147,7 @@ def main(options):
     print('{} islands: {}'.format(len(islands), islands))
 
     # Deciding number of processes to run islands
-    max_processes = max(len(islands) * 2, cpu_count() * 2)
+    max_processes = min(len(islands) * 2, cpu_count())
     count_threshold = 3
     processes = options.processes
     time_per_processes = Counter()
