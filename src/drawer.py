@@ -7,6 +7,7 @@ from PIL import Image, ImageDraw
 class Shape(Enum):
     CIRCLE = 'c'
     ELLIPSE = 'e'
+    LINE = 'l'
     QUAD = 'q'
     RECT = 'r'
     TRIANGLE = 't'
@@ -15,9 +16,13 @@ class Shape(Enum):
 POINTS_PER_SHAPE = {
     Shape.CIRCLE: 1,
     Shape.ELLIPSE: 2,
+    Shape.LINE: 2,
     Shape.QUAD: 4,
     Shape.RECT: 2,
     Shape.TRIANGLE: 3,
+}
+EXTRA_BITS_PER_SHAPE = {
+    Shape.LINE: 4,  # width
 }
 CHANNELS_TO_IMAGE_MODE = {1: 'L', 2: 'LA', 3: 'RGB', 4: 'RGBA'}
 IMAGE_MODES = list(CHANNELS_TO_IMAGE_MODE.values())
@@ -46,7 +51,7 @@ def draw_as_svg(filename,
 
     total_shapes = symmetrify_shapes(image_size, symmetry, shapes)
 
-    for color, points in total_shapes:
+    for color, points, extra in total_shapes:
         color = [v / 255 for v in color]
         r, g, b, a = tuple_to_rgba(color)
         if shape is Shape.ELLIPSE:
@@ -102,11 +107,13 @@ def draw_shapes(
 
     total_shapes = symmetrify_shapes(image_size, symmetry, shapes)
 
-    for color, points in total_shapes:
+    for color, points, extra in total_shapes:
         if shape is Shape.ELLIPSE:
             drawer.ellipse(points, color)
         elif shape is Shape.CIRCLE:
             drawer.ellipse((points[0], (points[0][0] + 10, points[0][1] + 10)), color)
+        elif shape is Shape.LINE:
+            drawer.line(points, fill=color, width=extra)
         elif shape is Shape.RECT:
             drawer.rectangle(points, color)
         else:
@@ -117,8 +124,8 @@ def draw_shapes(
 def symmetrify_shapes(image_size, symmetry, shapes):
     total = list(shapes)
     for element in symmetry:
-        for color, points in shapes:
-            total.append((color, get_symmetry(image_size, element, points)))
+        for color, points, extra in shapes:
+            total.append((color, get_symmetry(image_size, element, points), extra))
         shapes = list(total)
     total.sort()
     return total

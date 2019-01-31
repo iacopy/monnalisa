@@ -1,7 +1,7 @@
 from math import ceil, log
 from random import choice
 
-from drawer import Shape, IMAGE_MODES, POINTS_PER_SHAPE, draw_shapes
+from drawer import Shape, IMAGE_MODES, POINTS_PER_SHAPE, EXTRA_BITS_PER_SHAPE, draw_shapes
 
 BASES = '01'
 
@@ -33,21 +33,23 @@ class ShapesEncoder:
         self.shape = Shape(shape)
         self.n_shapes = n_shapes
         points_per_shape = POINTS_PER_SHAPE[self.shape]
+        extra = EXTRA_BITS_PER_SHAPE.get(self.shape, 0)
         width, height = image_size
         size_bits = ceil(log(width, 2)), ceil(log(height, 2))
         color_bits = color_bit_depth * self.color_channels
         visible_bits = 1
         self.genome_size = color_bits + n_shapes * (
-            visible_bits + color_bits + sum(size_bits) + points_per_shape * sum(size_bits)
+            visible_bits + color_bits + sum(size_bits) + points_per_shape * (sum(size_bits) + extra)
         )
         sb = sum(size_bits)
-        print('genome_size = {color_bits} + {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * {sb})'.format(**locals()))
+        print('genome_size = {color_bits} + {n_shapes} * ({visible_bits} + {color_bits} + {points_per_shape} * ({sb} + {extra})'.format(**locals()))
 
         self.bits = dict(
             channel=color_bits // self.color_channels,
             x=size_bits[0], y=size_bits[1],
             visible=visible_bits,
             color_depth=color_bit_depth,
+            extra=extra,
         )
         print('self.bits =', self.bits)
         self.index = 0
@@ -106,11 +108,15 @@ class ShapesEncoder:
                 for i, point in enumerate(points):
                     points[i] = position[0] + point[0], position[1] + point[1]
                 color = self._read_color(sequence)
+                if self.bits['extra']:
+                    extra = self._read(sequence, self.bits['extra'])
+                else:
+                    extra = None
             except ValueError as err:
                 break
             else:
                 if visible:
-                    shapes.append((color, points))
+                    shapes.append((color, points, extra))
         return {'background': bg_color, 'shapes': shapes,
                 'annotations': annotations}
 
